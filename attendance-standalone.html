@@ -1,0 +1,900 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1.0">
+
+  <title>Employee Attendance</title>
+
+  <!-- Face API -->
+  <script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.15/dist/face-api.js"></script>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #f4f6f8;
+      color: #222;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 520px;
+      padding: 20px;
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 20px;
+      padding: 30px 25px;
+      box-shadow: 0 10px 35px rgba(0,0,0,0.10);
+      text-align: center;
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: 28px;
+    }
+
+    .subtitle {
+      color: #777;
+      margin-bottom: 25px;
+    }
+
+    .clock {
+      font-size: 30px;
+      font-weight: bold;
+      margin-bottom: 25px;
+    }
+
+    .buttons {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 15px;
+    }
+
+    button {
+      border: none;
+      border-radius: 14px;
+      padding: 18px 10px;
+      font-size: 18px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .time-in {
+      background: #1d8f4e;
+      color: white;
+    }
+
+    .time-out {
+      background: #c62828;
+      color: white;
+    }
+
+    .status {
+      margin-top: 20px;
+      padding: 14px;
+      border-radius: 12px;
+      background: #f1f3f5;
+      min-height: 48px;
+    }
+
+    .camera-area {
+      display: none;
+      margin-top: 20px;
+    }
+
+    video {
+      width: 100%;
+      max-width: 420px;
+      border-radius: 16px;
+      background: #000;
+      transform: scaleX(-1);
+    }
+
+    .camera-buttons {
+      display: flex;
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    .camera-buttons button {
+      flex: 1;
+      font-size: 15px;
+      padding: 13px;
+    }
+
+    .cancel {
+      background: #777;
+      color: white;
+    }
+
+    .scan {
+      background: #1769aa;
+      color: white;
+    }
+
+    .success {
+      color: #176b39;
+      font-weight: bold;
+    }
+
+    .error {
+      color: #b71c1c;
+      font-weight: bold;
+    }
+
+    .loading {
+      color: #555;
+    }
+
+    .employee-name {
+      font-size: 20px;
+      font-weight: bold;
+      margin-top: 12px;
+    }
+
+    .small {
+      font-size: 13px;
+      color: #888;
+      margin-top: 15px;
+    }
+
+    @media (max-width: 500px) {
+      .buttons {
+        grid-template-columns: 1fr;
+      }
+
+      .card {
+        padding: 25px 18px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+<div class="container">
+
+  <div class="card">
+
+    <h1>Attendance</h1>
+
+    <div class="subtitle">
+      Employee Time In / Time Out
+    </div>
+
+    <div id="clock" class="clock">
+      --:--:--
+    </div>
+
+    <div class="buttons">
+
+      <button
+        id="timeInBtn"
+        class="time-in"
+        onclick="startAttendance('TIME_IN')">
+        TIME IN
+      </button>
+
+      <button
+        id="timeOutBtn"
+        class="time-out"
+        onclick="startAttendance('TIME_OUT')">
+        TIME OUT
+      </button>
+
+    </div>
+
+    <div id="cameraArea" class="camera-area">
+
+      <video
+        id="video"
+        autoplay
+        muted
+        playsinline>
+      </video>
+
+      <div class="camera-buttons">
+
+        <button
+          class="scan"
+          id="scanBtn"
+          onclick="scanFace()">
+          SCAN FACE
+        </button>
+
+        <button
+          class="cancel"
+          onclick="cancelCamera()">
+          CANCEL
+        </button>
+
+      </div>
+
+    </div>
+
+    <div id="employeeName"
+         class="employee-name">
+    </div>
+
+    <div id="status"
+         class="status">
+      Loading attendance system...
+    </div>
+
+    <div class="small">
+      Please position your face clearly in front of the camera.
+    </div>
+
+  </div>
+
+</div>
+
+
+<script>
+
+  /* =====================================================
+     CONFIG - EDIT THIS AFTER YOU DEPLOY THE APPS SCRIPT
+     =====================================================
+     Paste your Apps Script Web App URL below. It looks like:
+     https://script.google.com/macros/s/AKfycb.../exec
+
+     Get it from: Apps Script editor > Deploy >
+     Manage deployments > (copy the "Web app" URL).
+     Every time you redeploy a new VERSION, this URL stays
+     the same, so you normally only need to set this once.
+  */
+  const APPS_SCRIPT_URL = 'PASTE_YOUR_APPS_SCRIPT_WEB_APP_URL_HERE';
+
+  const MODEL_URL =
+    'https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.15/model';
+
+  // Filled in from the server via getPublicConfig() once the
+  // page loads, so this page and the backend can never drift
+  // out of sync on the threshold.
+  let FACE_MATCH_THRESHOLD = 0.48;
+
+  // Re-pull the employee face list on this interval so a kiosk
+  // left open all day picks up newly-registered employees
+  // without needing a manual page refresh.
+  const FACE_DB_REFRESH_MS = 5 * 60 * 1000; // 5 minutes
+
+  let modelsLoaded = false;
+  let faceDatabase = [];
+
+  let currentAction = null;
+  let stream = null;
+
+
+  /* =====================================================
+     API HELPER
+     =====================================================
+     Sends a POST request to the Apps Script Web App as
+     Content-Type: text/plain. This is intentional - it
+     keeps the request a CORS "simple request" so the
+     browser skips the OPTIONS preflight, which Apps Script
+     cannot answer correctly. Apps Script still reads the
+     raw JSON body fine via e.postData.contents.
+
+     This helper just returns the parsed JSON response as-is.
+     Callers are responsible for checking result.success where
+     that field is meaningful (see each call site).
+  */
+  function callApi(action, data) {
+
+    const payload = Object.assign({ action: action }, data || {});
+
+    return fetch(APPS_SCRIPT_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'text/plain;charset=utf-8'
+      },
+      body: JSON.stringify(payload)
+    })
+      .then(function(response) {
+
+        if (!response.ok) {
+          throw new Error('Network error (' + response.status + ').');
+        }
+
+        return response.json();
+      });
+  }
+
+
+  /* =====================================================
+     CLOCK
+     ===================================================== */
+
+  function updateClock() {
+
+    const now = new Date();
+
+    const formatter = new Intl.DateTimeFormat(
+      'en-PH',
+      {
+        timeZone: 'Asia/Manila',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: true
+      }
+    );
+
+    document.getElementById('clock').textContent =
+      formatter.format(now);
+  }
+
+  setInterval(updateClock, 1000);
+  updateClock();
+
+
+  /* =====================================================
+     STATUS
+     ===================================================== */
+
+  function setStatus(message, type) {
+
+    const el = document.getElementById('status');
+
+    el.className = 'status';
+
+    if (type) {
+      el.classList.add(type);
+    }
+
+    el.textContent = message;
+  }
+
+
+  /* =====================================================
+     LOAD PUBLIC CONFIG (threshold)
+     ===================================================== */
+
+  function loadPublicConfig() {
+
+    return callApi('getPublicConfig')
+      .then(function(config) {
+
+        if (config && typeof config.faceMatchThreshold === 'number') {
+          FACE_MATCH_THRESHOLD = config.faceMatchThreshold;
+        }
+      })
+      .catch(function(error) {
+
+        console.error(error);
+        // Not fatal - fall back to the default above.
+      });
+  }
+
+
+  /* =====================================================
+     LOAD MODELS
+     ===================================================== */
+
+  async function loadModels() {
+
+    try {
+
+      setStatus(
+        'Loading face recognition...',
+        'loading'
+      );
+
+      await Promise.all([
+
+        faceapi.nets.tinyFaceDetector.loadFromUri(
+          MODEL_URL
+        ),
+
+        faceapi.nets.faceLandmark68Net.loadFromUri(
+          MODEL_URL
+        ),
+
+        faceapi.nets.faceRecognitionNet.loadFromUri(
+          MODEL_URL
+        )
+
+      ]);
+
+      modelsLoaded = true;
+
+      setStatus(
+        'Ready. Please select Time In or Time Out.',
+        'success'
+      );
+
+    } catch (error) {
+
+      console.error(error);
+
+      setStatus(
+        'Unable to load face recognition models.',
+        'error'
+      );
+    }
+  }
+
+
+  /* =====================================================
+     LOAD EMPLOYEE FACE DATABASE
+     ===================================================== */
+
+  function loadFaceDatabase() {
+
+    callApi('getPublicFaceDatabase')
+      .then(function(data) {
+
+        if (data && data.success === false) {
+          throw new Error(data.message || 'Unable to load employee records.');
+        }
+
+        faceDatabase = data || [];
+
+        console.log(
+          'Employees loaded:',
+          faceDatabase.length
+        );
+
+        // Don't stomp on a status message the user is
+        // actively looking at mid-scan - only reset the
+        // idle message.
+        if (modelsLoaded && !currentAction) {
+
+          setStatus(
+            'Ready. Please select Time In or Time Out.',
+            'success'
+          );
+        }
+      })
+      .catch(function(error) {
+
+        console.error(error);
+
+        if (!currentAction) {
+
+          setStatus(
+            error.message || 'Unable to load employee records.',
+            'error'
+          );
+        }
+      });
+  }
+
+
+  /* =====================================================
+     START ATTENDANCE
+     ===================================================== */
+
+  async function startAttendance(action) {
+
+    if (!APPS_SCRIPT_URL || APPS_SCRIPT_URL.indexOf('PASTE_YOUR') === 0) {
+
+      setStatus(
+        'This page is not configured yet - set APPS_SCRIPT_URL in the code.',
+        'error'
+      );
+
+      return;
+    }
+
+    if (!modelsLoaded) {
+
+      setStatus(
+        'Face recognition is still loading. Please wait.',
+        'error'
+      );
+
+      return;
+    }
+
+    if (!faceDatabase.length) {
+
+      setStatus(
+        'No registered employees with face data were found.',
+        'error'
+      );
+
+      return;
+    }
+
+    currentAction = action;
+
+    document.getElementById('timeInBtn').disabled = true;
+    document.getElementById('timeOutBtn').disabled = true;
+
+    document.getElementById('cameraArea').style.display =
+      'block';
+
+    setStatus(
+      'Starting camera...',
+      'loading'
+    );
+
+    try {
+
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: 'user',
+          width: {
+            ideal: 640
+          },
+          height: {
+            ideal: 480
+          }
+        },
+        audio: false
+      });
+
+      const video =
+        document.getElementById('video');
+
+      video.srcObject = stream;
+
+      await video.play();
+
+      setStatus(
+        'Position your face inside the camera and press SCAN FACE.',
+        'loading'
+      );
+
+    } catch (error) {
+
+      console.error(error);
+
+      cancelCamera();
+
+      setStatus(
+        'Camera access was denied or unavailable. Please allow camera permission in your browser.',
+        'error'
+      );
+    }
+  }
+
+
+  /* =====================================================
+     SCAN FACE
+     ===================================================== */
+
+  async function scanFace() {
+
+    if (!stream) {
+
+      setStatus(
+        'Camera is not active.',
+        'error'
+      );
+
+      return;
+    }
+
+    const scanButton =
+      document.getElementById('scanBtn');
+
+    scanButton.disabled = true;
+
+    setStatus(
+      'Scanning face...',
+      'loading'
+    );
+
+    try {
+
+      const video =
+        document.getElementById('video');
+
+      const detection =
+        await faceapi
+          .detectSingleFace(
+            video,
+            new faceapi.TinyFaceDetectorOptions({
+              inputSize: 416,
+              scoreThreshold: 0.5
+            })
+          )
+          .withFaceLandmarks()
+          .withFaceDescriptor();
+
+      if (!detection) {
+
+        setStatus(
+          'No face detected. Please look directly at the camera.',
+          'error'
+        );
+
+        scanButton.disabled = false;
+
+        return;
+      }
+
+      const descriptor =
+        Array.from(detection.descriptor);
+
+      const match =
+        findBestMatch(descriptor);
+
+      if (!match) {
+
+        setStatus(
+          'Face not recognized. Please try again.',
+          'error'
+        );
+
+        scanButton.disabled = false;
+
+        return;
+      }
+
+      const employee =
+        match.employee;
+
+      document.getElementById(
+        'employeeName'
+      ).textContent =
+        employee.fullName;
+
+      setStatus(
+        'Identity verified. Recording attendance...',
+        'loading'
+      );
+
+      stopCamera();
+
+      callApi('recordAttendance', {
+        employeeId: employee.employeeId,
+        attendanceAction: currentAction
+      })
+        .then(handleAttendanceResult)
+        .catch(function(error) {
+
+          console.error(error);
+
+          resetButtons();
+
+          setStatus(
+            error.message ||
+            'Unable to record attendance.',
+            'error'
+          );
+        });
+
+    } catch (error) {
+
+      console.error(error);
+
+      scanButton.disabled = false;
+
+      setStatus(
+        'An error occurred during face recognition.',
+        'error'
+      );
+    }
+  }
+
+
+  /* =====================================================
+     FACE MATCHING
+     ===================================================== */
+
+  function findBestMatch(queryDescriptor) {
+
+    let bestEmployee = null;
+    let bestDistance = Infinity;
+
+    for (const employee of faceDatabase) {
+
+      if (
+        !employee.descriptor ||
+        employee.descriptor.length !== 128
+      ) {
+        continue;
+      }
+
+      const distance =
+        euclideanDistance(
+          queryDescriptor,
+          employee.descriptor
+        );
+
+      if (distance < bestDistance) {
+
+        bestDistance = distance;
+        bestEmployee = employee;
+      }
+    }
+
+    if (
+      bestEmployee &&
+      bestDistance <= FACE_MATCH_THRESHOLD
+    ) {
+
+      return {
+        employee: bestEmployee,
+        distance: bestDistance
+      };
+    }
+
+    return null;
+  }
+
+
+  function euclideanDistance(a, b) {
+
+    let sum = 0;
+
+    for (let i = 0; i < a.length; i++) {
+
+      const difference =
+        a[i] - b[i];
+
+      sum += difference * difference;
+    }
+
+    return Math.sqrt(sum);
+  }
+
+
+  /* =====================================================
+     ATTENDANCE RESULT
+     =====================================================
+     recordAttendance always returns normally (never throws)
+     even when the business action fails (e.g. already timed
+     in), so success:false here means "show this message",
+     not "something broke". Actual transport/server errors
+     are handled in the .catch() at the call site above.
+  */
+  function handleAttendanceResult(result) {
+
+    resetButtons();
+
+    if (!result) {
+
+      setStatus(
+        'No response received from server.',
+        'error'
+      );
+
+      return;
+    }
+
+    if (!result.success) {
+
+      setStatus(
+        result.message,
+        'error'
+      );
+
+      return;
+    }
+
+    const actionText =
+      result.type === 'TIME_IN'
+        ? 'Time In'
+        : 'Time Out';
+
+    setStatus(
+      actionText +
+      ' recorded successfully at ' +
+      result.time,
+      'success'
+    );
+
+    document.getElementById(
+      'employeeName'
+    ).textContent =
+      result.fullName;
+
+    setTimeout(function() {
+
+      document.getElementById(
+        'employeeName'
+      ).textContent = '';
+
+      setStatus(
+        'Ready. Please select Time In or Time Out.',
+        'success'
+      );
+
+    }, 5000);
+  }
+
+
+  /* =====================================================
+     CAMERA
+     ===================================================== */
+
+  function stopCamera() {
+
+    if (stream) {
+
+      stream
+        .getTracks()
+        .forEach(function(track) {
+          track.stop();
+        });
+
+      stream = null;
+    }
+  }
+
+
+  function cancelCamera() {
+
+    stopCamera();
+
+    document.getElementById(
+      'cameraArea'
+    ).style.display = 'none';
+
+    resetButtons();
+
+    setStatus(
+      'Ready. Please select Time In or Time Out.',
+      'success'
+    );
+  }
+
+
+  function resetButtons() {
+
+    document.getElementById(
+      'timeInBtn'
+    ).disabled = false;
+
+    document.getElementById(
+      'timeOutBtn'
+    ).disabled = false;
+
+    document.getElementById(
+      'scanBtn'
+    ).disabled = false;
+
+    document.getElementById(
+      'cameraArea'
+    ).style.display = 'none';
+
+    currentAction = null;
+  }
+
+
+  /* =====================================================
+     INITIALIZE
+     ===================================================== */
+
+  window.addEventListener(
+    'load',
+    async function() {
+
+      await loadPublicConfig();
+      await loadModels();
+
+      loadFaceDatabase();
+
+      setInterval(
+        loadFaceDatabase,
+        FACE_DB_REFRESH_MS
+      );
+
+    }
+  );
+
+</script>
+
+</body>
+</html>

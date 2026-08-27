@@ -1,0 +1,1999 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1.0">
+
+  <title>HR / Admin Portal</title>
+
+  <script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.15/dist/face-api.js"></script>
+
+  <style>
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #f3f5f7;
+      color: #222;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    /* LOGIN */
+
+    #loginPage {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .login-card {
+      width: 100%;
+      max-width: 420px;
+      background: white;
+      padding: 35px;
+      border-radius: 20px;
+      box-shadow: 0 10px 35px rgba(0,0,0,.12);
+    }
+
+    .login-card h1 {
+      margin-top: 0;
+      text-align: center;
+    }
+
+    .login-subtitle {
+      text-align: center;
+      color: #777;
+      margin-bottom: 25px;
+    }
+
+    input,
+    select {
+      width: 100%;
+      padding: 13px;
+      border: 1px solid #ddd;
+      border-radius: 10px;
+      margin-top: 7px;
+      margin-bottom: 15px;
+      font-size: 15px;
+      background: white;
+    }
+
+    label {
+      font-weight: bold;
+      font-size: 14px;
+    }
+
+    button {
+      border: none;
+      border-radius: 10px;
+      padding: 12px 18px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    button:disabled {
+      opacity: .5;
+      cursor: not-allowed;
+    }
+
+    .primary {
+      background: #1769aa;
+      color: white;
+    }
+
+    .success {
+      background: #1d8f4e;
+      color: white;
+    }
+
+    .danger {
+      background: #c62828;
+      color: white;
+    }
+
+    .secondary {
+      background: #777;
+      color: white;
+    }
+
+    .login-button {
+      width: 100%;
+      padding: 14px;
+      margin-top: 5px;
+    }
+
+    .message {
+      padding: 12px;
+      border-radius: 10px;
+      margin-top: 15px;
+      background: #f2f2f2;
+    }
+
+    .error {
+      color: #b71c1c;
+      background: #ffebee;
+    }
+
+    .ok {
+      color: #176b39;
+      background: #e8f5e9;
+    }
+
+
+    /* ADMIN */
+
+    #adminPage {
+      min-height: 100vh;
+    }
+
+    .topbar {
+      background: #18212b;
+      color: white;
+      padding: 15px 25px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 15px;
+    }
+
+    .topbar-title {
+      font-size: 20px;
+      font-weight: bold;
+    }
+
+    .user-info {
+      text-align: right;
+      font-size: 13px;
+    }
+
+    .layout {
+      display: flex;
+      min-height: calc(100vh - 65px);
+    }
+
+    .sidebar {
+      width: 230px;
+      background: #202b36;
+      padding: 20px 12px;
+    }
+
+    .sidebar button {
+      width: 100%;
+      margin-bottom: 8px;
+      background: transparent;
+      color: white;
+      text-align: left;
+    }
+
+    .sidebar button:hover {
+      background: #334250;
+    }
+
+    .content {
+      flex: 1;
+      padding: 25px;
+      overflow-x: auto;
+    }
+
+    .section {
+      background: white;
+      padding: 25px;
+      border-radius: 15px;
+      margin-bottom: 20px;
+      box-shadow: 0 5px 20px rgba(0,0,0,.05);
+    }
+
+    .section h2 {
+      margin-top: 0;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 15px;
+    }
+
+    .stat {
+      background: #f7f8fa;
+      border-radius: 12px;
+      padding: 20px;
+    }
+
+    .stat-number {
+      font-size: 28px;
+      font-weight: bold;
+      margin-top: 8px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 15px;
+      min-width: 700px;
+    }
+
+    th,
+    td {
+      padding: 10px;
+      border-bottom: 1px solid #eee;
+      text-align: left;
+    }
+
+    th {
+      background: #f5f6f7;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 15px;
+    }
+
+    .form-grid .full {
+      grid-column: 1 / -1;
+    }
+
+    video {
+      width: 100%;
+      max-width: 500px;
+      border-radius: 15px;
+      background: black;
+      transform: scaleX(-1);
+    }
+
+    .camera-box {
+      margin-top: 15px;
+    }
+
+    .button-row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    @media(max-width: 800px) {
+
+      .layout {
+        display: block;
+      }
+
+      .sidebar {
+        width: 100%;
+        display: flex;
+        overflow-x: auto;
+      }
+
+      .sidebar button {
+        min-width: 140px;
+      }
+
+      .stats {
+        grid-template-columns: 1fr;
+      }
+
+      .form-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .form-grid .full {
+        grid-column: auto;
+      }
+
+      .topbar {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .user-info {
+        text-align: left;
+      }
+    }
+
+  </style>
+
+</head>
+
+<body>
+
+
+<!-- =====================================================
+     LOGIN
+     ===================================================== -->
+
+<div id="loginPage">
+
+  <div class="login-card">
+
+    <h1>HR / Admin Portal</h1>
+
+    <div class="login-subtitle">
+      Attendance Management System
+    </div>
+
+    <label>Username</label>
+
+    <input
+      id="loginUsername"
+      type="text"
+      autocomplete="username">
+
+    <label>Password</label>
+
+    <input
+      id="loginPassword"
+      type="password"
+      autocomplete="current-password">
+
+    <button
+      class="primary login-button"
+      onclick="login()">
+
+      LOGIN
+
+    </button>
+
+    <div
+      id="loginMessage"
+      class="message hidden">
+    </div>
+
+  </div>
+
+</div>
+
+
+<!-- =====================================================
+     ADMIN PORTAL
+     ===================================================== -->
+
+<div id="adminPage"
+     class="hidden">
+
+  <div class="topbar">
+
+    <div class="topbar-title">
+      HR / Admin Portal
+    </div>
+
+    <div class="user-info">
+
+      <div id="loggedUser"></div>
+
+      <button
+        class="secondary"
+        onclick="logout()">
+        Logout
+      </button>
+
+    </div>
+
+  </div>
+
+
+  <div class="layout">
+
+
+    <!-- SIDEBAR -->
+
+    <div class="sidebar">
+
+      <button onclick="showSection('dashboardSection')">
+        Dashboard
+      </button>
+
+      <button onclick="showSection('employeeSection')">
+        Employees
+      </button>
+
+      <button onclick="showSection('attendanceSection')">
+        Attendance
+      </button>
+
+      <button
+        id="accountsMenu"
+        onclick="showSection('accountsSection')">
+        User Accounts
+      </button>
+
+      <button onclick="showSection('passwordSection')">
+        Change Password
+      </button>
+
+    </div>
+
+
+    <!-- CONTENT -->
+
+    <div class="content">
+
+
+      <!-- DASHBOARD -->
+
+      <div id="dashboardSection"
+           class="section">
+
+        <h2>Dashboard</h2>
+
+        <div class="stats">
+
+          <div class="stat">
+
+            Active Employees
+
+            <div
+              id="statEmployees"
+              class="stat-number">
+              0
+            </div>
+
+          </div>
+
+          <div class="stat">
+
+            Time Ins Today
+
+            <div
+              id="statTimeIns"
+              class="stat-number">
+              0
+            </div>
+
+          </div>
+
+          <div class="stat">
+
+            Time Outs Today
+
+            <div
+              id="statTimeOuts"
+              class="stat-number">
+              0
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
+
+
+      <!-- EMPLOYEE MANAGEMENT -->
+
+      <div id="employeeSection"
+           class="section hidden">
+
+        <h2>Employee Management</h2>
+
+        <div class="form-grid">
+
+          <div>
+
+            <label>Employee ID</label>
+
+            <input
+              id="employeeId"
+              type="text"
+              placeholder="EMP001">
+
+          </div>
+
+          <div>
+
+            <label>Full Name</label>
+
+            <input
+              id="employeeName"
+              type="text"
+              placeholder="Juan Dela Cruz">
+
+          </div>
+
+          <div class="full">
+
+            <label>Department</label>
+
+            <!--
+              Populated at runtime from getPublicConfig(),
+              which reads CONFIG.DEPARTMENTS on the server.
+              This page has no Apps Script templating (it's
+              a plain static file), so the list is fetched
+              instead of injected server-side.
+            -->
+            <select id="employeeDepartment">
+              <option value="">Loading departments...</option>
+            </select>
+
+          </div>
+
+        </div>
+
+
+        <h3>Face Registration</h3>
+
+        <div class="camera-box">
+
+          <video
+            id="hrVideo"
+            autoplay
+            muted
+            playsinline>
+          </video>
+
+        </div>
+
+        <div class="button-row">
+
+          <button
+            class="primary"
+            onclick="startHRCamera()">
+
+            START CAMERA
+
+          </button>
+
+          <button
+            class="success"
+            id="captureFaceButton"
+            onclick="captureEmployeeFace()"
+            disabled>
+
+            CAPTURE FACE
+
+          </button>
+
+          <button
+            class="secondary"
+            onclick="stopHRCamera()">
+
+            STOP CAMERA
+
+          </button>
+
+        </div>
+
+        <div
+          id="faceStatus"
+          class="message">
+          Face registration not started.
+        </div>
+
+
+        <div class="button-row">
+
+          <button
+            class="success"
+            onclick="registerEmployee()">
+
+            REGISTER EMPLOYEE
+
+          </button>
+
+        </div>
+
+
+        <div
+          id="employeeMessage"
+          class="message hidden">
+        </div>
+
+
+        <h3>Employees</h3>
+
+        <button
+          class="primary"
+          onclick="loadEmployees()">
+
+          REFRESH
+
+        </button>
+
+        <div id="employeeTable"></div>
+
+      </div>
+
+
+      <!-- ATTENDANCE -->
+
+      <div id="attendanceSection"
+           class="section hidden">
+
+        <h2>Attendance Records</h2>
+
+        <div class="form-grid">
+
+          <div>
+
+            <label>From</label>
+
+            <input
+              id="dateFrom"
+              type="date">
+
+          </div>
+
+          <div>
+
+            <label>To</label>
+
+            <input
+              id="dateTo"
+              type="date">
+
+          </div>
+
+        </div>
+
+        <button
+          class="primary"
+          onclick="loadAttendance()">
+
+          LOAD RECORDS
+
+        </button>
+
+        <div id="attendanceTable"></div>
+
+      </div>
+
+
+      <!-- USER ACCOUNTS -->
+
+      <div id="accountsSection"
+           class="section hidden">
+
+        <h2>User Accounts</h2>
+
+        <div class="form-grid">
+
+          <div>
+
+            <label>Username</label>
+
+            <input
+              id="newUsername"
+              type="text">
+
+          </div>
+
+          <div>
+
+            <label>Full Name</label>
+
+            <input
+              id="newFullName"
+              type="text">
+
+          </div>
+
+          <div>
+
+            <label>Password</label>
+
+            <input
+              id="newPassword"
+              type="password">
+
+          </div>
+
+          <div>
+
+            <label>Role</label>
+
+            <select id="newRole">
+
+              <option value="HR">
+                HR
+              </option>
+
+              <option value="TIMEKEEPER">
+                Timekeeper
+              </option>
+
+              <option value="ADMIN">
+                Admin
+              </option>
+
+            </select>
+
+          </div>
+
+        </div>
+
+        <button
+          class="success"
+          onclick="createAccount()">
+
+          CREATE ACCOUNT
+
+        </button>
+
+
+        <div
+          id="accountMessage"
+          class="message hidden">
+        </div>
+
+
+        <div id="usersTable"></div>
+
+      </div>
+
+
+      <!-- CHANGE PASSWORD -->
+
+      <div id="passwordSection"
+           class="section hidden">
+
+        <h2>Change Password</h2>
+
+        <div class="form-grid">
+
+          <div>
+
+            <label>Current Password</label>
+
+            <input
+              id="currentPasswordInput"
+              type="password"
+              autocomplete="current-password">
+
+          </div>
+
+          <div>
+
+            <label>New Password</label>
+
+            <input
+              id="newPasswordInput"
+              type="password"
+              autocomplete="new-password">
+
+          </div>
+
+          <div>
+
+            <label>Confirm New Password</label>
+
+            <input
+              id="confirmPasswordInput"
+              type="password"
+              autocomplete="new-password">
+
+          </div>
+
+        </div>
+
+        <button
+          class="success"
+          onclick="changeOwnPassword()">
+
+          UPDATE PASSWORD
+
+        </button>
+
+        <div
+          id="passwordMessage"
+          class="message hidden">
+        </div>
+
+      </div>
+
+
+    </div>
+
+  </div>
+
+</div>
+
+
+<script>
+
+  /* =====================================================
+     CONFIG - EDIT THIS AFTER YOU DEPLOY THE APPS SCRIPT
+     =====================================================
+     Same Web App URL as attendance-standalone.html.
+     https://script.google.com/macros/s/AKfycb.../exec
+  */
+  const APPS_SCRIPT_URL = 'PASTE_YOUR_APPS_SCRIPT_WEB_APP_URL_HERE';
+
+  const MODEL_URL =
+    'https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.15/model';
+
+  let sessionToken = null;
+  let currentUser = null;
+
+  let hrStream = null;
+  let capturedDescriptor = null;
+
+  let modelsLoaded = false;
+
+
+  /* =====================================================
+     API HELPER
+     =====================================================
+     POSTs as text/plain (not application/json) so the
+     browser treats it as a CORS "simple request" and skips
+     the OPTIONS preflight - Apps Script cannot answer that
+     preflight correctly, so application/json would fail
+     here even though the server reads the body fine either
+     way.
+
+     Returns the parsed JSON response as-is. Endpoints that
+     intentionally return {success:false, ...} as real data
+     (login, changePassword, registerEmployee, etc.) are
+     checked by their own caller, exactly like the original
+     google.script.run success handlers did. Endpoints that
+     return plain data (arrays, dashboard stats) will have
+     success:false injected by the server only when an
+     exception was thrown - callApiOrThrow() below handles
+     that case for you.
+  */
+  function callApi(action, data) {
+
+    const payload = Object.assign({ action: action }, data || {});
+
+    return fetch(APPS_SCRIPT_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'text/plain;charset=utf-8'
+      },
+      body: JSON.stringify(payload)
+    })
+      .then(function(response) {
+
+        if (!response.ok) {
+          throw new Error('Network error (' + response.status + ').');
+        }
+
+        return response.json();
+      });
+  }
+
+  /*
+   * For endpoints whose successful shape is plain data
+   * (array/object with no "success" field by design) -
+   * getEmployees, getUsers, getAttendanceRecords,
+   * getDashboardStats, getPublicConfig. A {success:false,...}
+   * response here can only mean the server threw (bad/expired
+   * token, permission error, etc.), so turn it into a
+   * rejected promise the same way withFailureHandler used to
+   * fire.
+   */
+  function callApiOrThrow(action, data) {
+
+    return callApi(action, data).then(function(result) {
+
+      if (
+        result &&
+        typeof result === 'object' &&
+        !Array.isArray(result) &&
+        result.success === false
+      ) {
+        throw new Error(result.message || 'Request failed.');
+      }
+
+      return result;
+    });
+  }
+
+
+  /* =====================================================
+     LOGIN
+     ===================================================== */
+
+  function login() {
+
+    const username =
+      document.getElementById(
+        'loginUsername'
+      ).value.trim();
+
+    const password =
+      document.getElementById(
+        'loginPassword'
+      ).value;
+
+    showLoginMessage(
+      'Logging in...',
+      ''
+    );
+
+    callApi('loginUser', {
+      username: username,
+      password: password
+    })
+      .then(function(result) {
+
+        if (!result.success) {
+
+          showLoginMessage(
+            result.message,
+            'error'
+          );
+
+          return;
+        }
+
+        sessionToken = result.token;
+        currentUser = result.user;
+
+        document.getElementById(
+          'loginPage'
+        ).classList.add('hidden');
+
+        document.getElementById(
+          'adminPage'
+        ).classList.remove('hidden');
+
+        document.getElementById(
+          'loggedUser'
+        ).textContent =
+          currentUser.fullName +
+          ' • ' +
+          currentUser.role;
+
+        if (
+          currentUser.role !== 'ADMIN'
+        ) {
+
+          document.getElementById(
+            'accountsMenu'
+          ).classList.add('hidden');
+
+        }
+
+        loadDepartments();
+
+        showSection('dashboardSection');
+
+        loadDashboard();
+
+      })
+      .catch(function(error) {
+
+        showLoginMessage(
+          error.message ||
+          'Login failed.',
+          'error'
+        );
+
+      });
+  }
+
+
+  function showLoginMessage(
+    message,
+    type
+  ) {
+
+    const el =
+      document.getElementById(
+        'loginMessage'
+      );
+
+    el.textContent = message;
+
+    el.className = 'message';
+
+    if (type) {
+      el.classList.add(type);
+    }
+  }
+
+
+  function logout() {
+
+    if (sessionToken) {
+
+      callApi('logoutUser', { token: sessionToken })
+        .catch(function() { /* logging out anyway */ });
+
+    }
+
+    sessionToken = null;
+    currentUser = null;
+
+    location.reload();
+  }
+
+
+  /* =====================================================
+     DEPARTMENTS
+     ===================================================== */
+
+  function loadDepartments() {
+
+    callApiOrThrow('getPublicConfig')
+      .then(function(config) {
+
+        const select =
+          document.getElementById('employeeDepartment');
+
+        const departments =
+          (config && config.departments) || [];
+
+        select.innerHTML = '';
+
+        departments.forEach(function(dept) {
+
+          const option = document.createElement('option');
+
+          option.value = dept;
+          option.textContent = dept;
+
+          select.appendChild(option);
+        });
+
+      })
+      .catch(function(error) {
+
+        console.error(error);
+
+        document.getElementById(
+          'employeeDepartment'
+        ).innerHTML =
+          '<option value="">Unable to load departments</option>';
+      });
+  }
+
+
+  /* =====================================================
+     SECTION NAVIGATION
+     ===================================================== */
+
+  function showSection(id) {
+
+    document
+      .querySelectorAll('.section')
+      .forEach(function(section) {
+
+        section.classList.add('hidden');
+
+      });
+
+    document
+      .getElementById(id)
+      .classList.remove('hidden');
+
+    if (id === 'dashboardSection') {
+      loadDashboard();
+    }
+
+    if (id === 'employeeSection') {
+      loadEmployees();
+    }
+
+    if (id === 'attendanceSection') {
+      loadAttendance();
+    }
+
+    if (
+      id === 'accountsSection' &&
+      currentUser.role === 'ADMIN'
+    ) {
+      loadUsers();
+    }
+  }
+
+
+  /* =====================================================
+     DASHBOARD
+     ===================================================== */
+
+  function loadDashboard() {
+
+    callApiOrThrow('getDashboardStats', { token: sessionToken })
+      .then(function(data) {
+
+        document.getElementById(
+          'statEmployees'
+        ).textContent =
+          data.activeEmployees;
+
+        document.getElementById(
+          'statTimeIns'
+        ).textContent =
+          data.timeInsToday;
+
+        document.getElementById(
+          'statTimeOuts'
+        ).textContent =
+          data.timeOutsToday;
+
+      })
+      .catch(handleServerError);
+  }
+
+
+  /* =====================================================
+     FACE MODELS
+     ===================================================== */
+
+  async function loadFaceModels() {
+
+    if (modelsLoaded) return;
+
+    try {
+
+      await Promise.all([
+
+        faceapi.nets.tinyFaceDetector.loadFromUri(
+          MODEL_URL
+        ),
+
+        faceapi.nets.faceLandmark68Net.loadFromUri(
+          MODEL_URL
+        ),
+
+        faceapi.nets.faceRecognitionNet.loadFromUri(
+          MODEL_URL
+        )
+
+      ]);
+
+      modelsLoaded = true;
+
+      document.getElementById(
+        'faceStatus'
+      ).textContent =
+        'Face recognition models loaded.';
+
+    } catch (error) {
+
+      console.error(error);
+
+      document.getElementById(
+        'faceStatus'
+      ).textContent =
+        'Unable to load face recognition models.';
+    }
+  }
+
+
+  /* =====================================================
+     HR CAMERA
+     =====================================================
+     This page is now a plain static file (hosted on
+     GitHub Pages, not inside Apps Script's HtmlService
+     iframe), so getUserMedia() is NOT blocked by
+     Permissions-Policy the way it was before.
+  */
+
+  async function startHRCamera() {
+
+    await loadFaceModels();
+
+    try {
+
+      hrStream =
+        await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: 'user',
+            width: {
+              ideal: 640
+            },
+            height: {
+              ideal: 480
+            }
+          },
+          audio: false
+        });
+
+      const video =
+        document.getElementById(
+          'hrVideo'
+        );
+
+      video.srcObject =
+        hrStream;
+
+      await video.play();
+
+      document.getElementById(
+        'captureFaceButton'
+      ).disabled = false;
+
+      document.getElementById(
+        'faceStatus'
+      ).textContent =
+        'Camera ready. Position one face clearly in the camera.';
+
+    } catch (error) {
+
+      console.error(error);
+
+      document.getElementById(
+        'faceStatus'
+      ).textContent =
+        'Camera permission was denied or unavailable.';
+    }
+  }
+
+
+  async function captureEmployeeFace() {
+
+    if (!hrStream) {
+
+      document.getElementById(
+        'faceStatus'
+      ).textContent =
+        'Please start the camera first.';
+
+      return;
+    }
+
+    const video =
+      document.getElementById(
+        'hrVideo'
+      );
+
+    document.getElementById(
+      'faceStatus'
+    ).textContent =
+      'Detecting face...';
+
+    try {
+
+      const detection =
+        await faceapi
+          .detectSingleFace(
+            video,
+            new faceapi.TinyFaceDetectorOptions({
+              inputSize: 416,
+              scoreThreshold: 0.5
+            })
+          )
+          .withFaceLandmarks()
+          .withFaceDescriptor();
+
+      if (!detection) {
+
+        document.getElementById(
+          'faceStatus'
+        ).textContent =
+          'No face detected. Please try again.';
+
+        return;
+      }
+
+      capturedDescriptor =
+        Array.from(
+          detection.descriptor
+        );
+
+      document.getElementById(
+        'faceStatus'
+      ).textContent =
+        'Face captured successfully. You can now register the employee.';
+
+    } catch (error) {
+
+      console.error(error);
+
+      document.getElementById(
+        'faceStatus'
+      ).textContent =
+        'Face capture failed.';
+    }
+  }
+
+
+  function stopHRCamera() {
+
+    if (hrStream) {
+
+      hrStream
+        .getTracks()
+        .forEach(function(track) {
+          track.stop();
+        });
+
+      hrStream = null;
+    }
+
+    document.getElementById(
+      'captureFaceButton'
+    ).disabled = true;
+  }
+
+
+  /* =====================================================
+     REGISTER EMPLOYEE
+     ===================================================== */
+
+  function registerEmployee() {
+
+    const employeeId =
+      document.getElementById(
+        'employeeId'
+      ).value.trim();
+
+    const fullName =
+      document.getElementById(
+        'employeeName'
+      ).value.trim();
+
+    const department =
+      document.getElementById(
+        'employeeDepartment'
+      ).value;
+
+    if (!employeeId || !fullName) {
+
+      showEmployeeMessage(
+        'Employee ID and full name are required.',
+        'error'
+      );
+
+      return;
+    }
+
+    if (
+      !capturedDescriptor
+    ) {
+
+      showEmployeeMessage(
+        'Please capture the employee face first.',
+        'error'
+      );
+
+      return;
+    }
+
+    showEmployeeMessage(
+      'Registering employee...',
+      ''
+    );
+
+    callApi('registerEmployee', {
+      token: sessionToken,
+      data: {
+        employeeId: employeeId,
+        fullName: fullName,
+        department: department,
+        faceDescriptor: JSON.stringify(capturedDescriptor)
+      }
+    })
+      .then(function(result) {
+
+        if (!result.success) {
+
+          showEmployeeMessage(
+            result.message ||
+            'Unable to register employee.',
+            'error'
+          );
+
+          return;
+        }
+
+        showEmployeeMessage(
+          result.message,
+          'ok'
+        );
+
+        document.getElementById(
+          'employeeId'
+        ).value = '';
+
+        document.getElementById(
+          'employeeName'
+        ).value = '';
+
+        document.getElementById(
+          'employeeDepartment'
+        ).selectedIndex = 0;
+
+        capturedDescriptor = null;
+
+        stopHRCamera();
+
+        loadEmployees();
+
+      })
+      .catch(function(error) {
+
+        showEmployeeMessage(
+          error.message ||
+          'Unable to register employee.',
+          'error'
+        );
+
+      });
+  }
+
+
+  function showEmployeeMessage(
+    message,
+    type
+  ) {
+
+    const el =
+      document.getElementById(
+        'employeeMessage'
+      );
+
+    el.className = 'message';
+
+    if (type) {
+      el.classList.add(type);
+    }
+
+    el.textContent = message;
+  }
+
+
+  /* =====================================================
+     EMPLOYEE LIST
+     ===================================================== */
+
+  function loadEmployees() {
+
+    callApiOrThrow('getEmployees', { token: sessionToken })
+      .then(function(employees) {
+
+        let html = `
+          <table>
+            <thead>
+              <tr>
+                <th>Employee ID</th>
+                <th>Name</th>
+                <th>Department</th>
+                <th>Face</th>
+                <th>Status</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+        `;
+
+        employees.forEach(function(employee) {
+
+          html += `
+            <tr>
+              <td>${escapeHtml(employee.employeeId)}</td>
+              <td>${escapeHtml(employee.fullName)}</td>
+              <td>${escapeHtml(employee.department)}</td>
+              <td>
+                ${employee.hasFace ? 'Registered' : 'Missing'}
+              </td>
+              <td>${escapeHtml(employee.status)}</td>
+              <td>
+                ${
+                  employee.status === 'ACTIVE'
+                    ? `
+                      <button
+                        class="danger"
+                        onclick="deactivateEmployee('${escapeJs(employee.employeeId)}')">
+                        Deactivate
+                      </button>
+                    `
+                    : ''
+                }
+              </td>
+            </tr>
+          `;
+        });
+
+        html += `
+            </tbody>
+          </table>
+        `;
+
+        document.getElementById(
+          'employeeTable'
+        ).innerHTML = html;
+
+      })
+      .catch(handleServerError);
+  }
+
+
+  function deactivateEmployee(employeeId) {
+
+    if (
+      !confirm(
+        'Deactivate employee ' +
+        employeeId +
+        '?'
+      )
+    ) {
+      return;
+    }
+
+    callApi('deactivateEmployee', {
+      token: sessionToken,
+      employeeId: employeeId
+    })
+      .then(function(result) {
+
+        if (!result.success) {
+          throw new Error(result.message);
+        }
+
+        alert(result.message);
+
+        loadEmployees();
+
+      })
+      .catch(handleServerError);
+  }
+
+
+  /* =====================================================
+     ATTENDANCE
+     ===================================================== */
+
+  function loadAttendance() {
+
+    const from =
+      document.getElementById(
+        'dateFrom'
+      ).value;
+
+    const to =
+      document.getElementById(
+        'dateTo'
+      ).value;
+
+    callApiOrThrow('getAttendanceRecords', {
+      token: sessionToken,
+      dateFrom: from,
+      dateTo: to
+    })
+      .then(function(records) {
+
+        let html = `
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Employee ID</th>
+                <th>Name</th>
+                <th>Time In</th>
+                <th>Time Out</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+        `;
+
+        records.forEach(function(record) {
+
+          html += `
+            <tr>
+              <td>${escapeHtml(record.date)}</td>
+              <td>${escapeHtml(record.employeeId)}</td>
+              <td>${escapeHtml(record.fullName)}</td>
+              <td>${escapeHtml(record.timeIn)}</td>
+              <td>${escapeHtml(record.timeOut)}</td>
+              <td>${escapeHtml(record.status)}</td>
+            </tr>
+          `;
+        });
+
+        html += `
+            </tbody>
+          </table>
+        `;
+
+        document.getElementById(
+          'attendanceTable'
+        ).innerHTML = html;
+
+      })
+      .catch(handleServerError);
+  }
+
+
+  /* =====================================================
+     USER ACCOUNTS
+     ===================================================== */
+
+  function createAccount() {
+
+    if (
+      !currentUser ||
+      currentUser.role !== 'ADMIN'
+    ) {
+      return;
+    }
+
+    const username =
+      document.getElementById(
+        'newUsername'
+      ).value.trim();
+
+    const fullName =
+      document.getElementById(
+        'newFullName'
+      ).value.trim();
+
+    const password =
+      document.getElementById(
+        'newPassword'
+      ).value;
+
+    const role =
+      document.getElementById(
+        'newRole'
+      ).value;
+
+    if (
+      !username ||
+      !fullName ||
+      !password
+    ) {
+
+      showAccountMessage(
+        'All account fields are required.',
+        'error'
+      );
+
+      return;
+    }
+
+    callApi('createUser', {
+      token: sessionToken,
+      data: {
+        username: username,
+        fullName: fullName,
+        password: password,
+        role: role
+      }
+    })
+      .then(function(result) {
+
+        if (!result.success) {
+
+          showAccountMessage(
+            result.message,
+            'error'
+          );
+
+          return;
+        }
+
+        showAccountMessage(
+          result.message,
+          'ok'
+        );
+
+        document.getElementById(
+          'newUsername'
+        ).value = '';
+
+        document.getElementById(
+          'newFullName'
+        ).value = '';
+
+        document.getElementById(
+          'newPassword'
+        ).value = '';
+
+        loadUsers();
+
+      })
+      .catch(function(error) {
+
+        showAccountMessage(
+          error.message,
+          'error'
+        );
+
+      });
+  }
+
+
+  function loadUsers() {
+
+    callApiOrThrow('getUsers', { token: sessionToken })
+      .then(function(users) {
+
+        let html = `
+          <table>
+            <thead>
+              <tr>
+                <th>Username</th>
+                <th>Name</th>
+                <th>Role</th>
+                <th>Status</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+        `;
+
+        users.forEach(function(user) {
+
+          html += `
+            <tr>
+              <td>${escapeHtml(user.username)}</td>
+              <td>${escapeHtml(user.fullName)}</td>
+              <td>${escapeHtml(user.role)}</td>
+              <td>${escapeHtml(user.status)}</td>
+              <td>
+                ${
+                  user.status === 'ACTIVE'
+                    ? `
+                      <button
+                        class="danger"
+                        onclick="deactivateUser('${escapeJs(user.userId)}')">
+                        Deactivate
+                      </button>
+                    `
+                    : ''
+                }
+              </td>
+            </tr>
+          `;
+        });
+
+        html += `
+            </tbody>
+          </table>
+        `;
+
+        document.getElementById(
+          'usersTable'
+        ).innerHTML = html;
+
+      })
+      .catch(handleServerError);
+  }
+
+
+  function deactivateUser(userId) {
+
+    if (
+      !confirm(
+        'Deactivate this user account?'
+      )
+    ) {
+      return;
+    }
+
+    callApi('deactivateUser', {
+      token: sessionToken,
+      userId: userId
+    })
+      .then(function(result) {
+
+        if (!result.success) {
+          throw new Error(result.message);
+        }
+
+        alert(result.message);
+
+        loadUsers();
+
+      })
+      .catch(handleServerError);
+  }
+
+
+  function showAccountMessage(
+    message,
+    type
+  ) {
+
+    const el =
+      document.getElementById(
+        'accountMessage'
+      );
+
+    el.className = 'message';
+
+    if (type) {
+      el.classList.add(type);
+    }
+
+    el.textContent = message;
+  }
+
+
+  /* =====================================================
+     CHANGE PASSWORD
+     ===================================================== */
+
+  function changeOwnPassword() {
+
+    const currentPassword =
+      document.getElementById(
+        'currentPasswordInput'
+      ).value;
+
+    const newPassword =
+      document.getElementById(
+        'newPasswordInput'
+      ).value;
+
+    const confirmPassword =
+      document.getElementById(
+        'confirmPasswordInput'
+      ).value;
+
+    if (
+      !currentPassword ||
+      !newPassword ||
+      !confirmPassword
+    ) {
+
+      showPasswordMessage(
+        'All fields are required.',
+        'error'
+      );
+
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+
+      showPasswordMessage(
+        'New password and confirmation do not match.',
+        'error'
+      );
+
+      return;
+    }
+
+    if (newPassword.length < 8) {
+
+      showPasswordMessage(
+        'New password must be at least 8 characters.',
+        'error'
+      );
+
+      return;
+    }
+
+    callApi('changePassword', {
+      token: sessionToken,
+      currentPassword: currentPassword,
+      newPassword: newPassword
+    })
+      .then(function(result) {
+
+        if (!result.success) {
+
+          showPasswordMessage(
+            result.message ||
+            'Unable to change password.',
+            'error'
+          );
+
+          return;
+        }
+
+        showPasswordMessage(
+          result.message,
+          'ok'
+        );
+
+        document.getElementById(
+          'currentPasswordInput'
+        ).value = '';
+
+        document.getElementById(
+          'newPasswordInput'
+        ).value = '';
+
+        document.getElementById(
+          'confirmPasswordInput'
+        ).value = '';
+
+      })
+      .catch(function(error) {
+
+        showPasswordMessage(
+          error.message ||
+          'Unable to change password.',
+          'error'
+        );
+
+      });
+  }
+
+
+  function showPasswordMessage(
+    message,
+    type
+  ) {
+
+    const el =
+      document.getElementById(
+        'passwordMessage'
+      );
+
+    el.className = 'message';
+
+    if (type) {
+      el.classList.add(type);
+    }
+
+    el.textContent = message;
+  }
+
+
+  /* =====================================================
+     HELPERS
+     ===================================================== */
+
+  function handleServerError(error) {
+
+    const message =
+      error && error.message
+        ? error.message
+        : 'An unexpected error occurred.';
+
+    // If the session died, don't just alert into a dead
+    // screen - send the user back to the login page.
+    if (message.toLowerCase().indexOf('session') !== -1) {
+
+      alert(
+        'Your session has expired. Please log in again.'
+      );
+
+      sessionToken = null;
+      currentUser = null;
+
+      location.reload();
+
+      return;
+    }
+
+    alert(message);
+  }
+
+
+  function escapeHtml(value) {
+
+    return String(value || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
+
+  function escapeJs(value) {
+
+    return String(value || '')
+      .replace(/\\/g, '\\\\')
+      .replace(/'/g, "\\'");
+  }
+
+
+  /* =====================================================
+     ENTER KEY LOGIN
+     ===================================================== */
+
+  document
+    .getElementById('loginPassword')
+    .addEventListener(
+      'keydown',
+      function(event) {
+
+        if (event.key === 'Enter') {
+          login();
+        }
+
+      }
+    );
+
+</script>
+
+</body>
+</html>
