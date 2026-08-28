@@ -139,10 +139,24 @@
       color: #555;
     }
 
+    .employee-photo {
+      width: 110px;
+      height: 110px;
+      border-radius: 50%;
+      object-fit: cover;
+      margin-top: 15px;
+      border: 3px solid #1769aa;
+      background: #eee;
+    }
+
+    .employee-photo.hidden {
+      display: none;
+    }
+
     .employee-name {
       font-size: 20px;
       font-weight: bold;
-      margin-top: 12px;
+      margin-top: 10px;
     }
 
     .small {
@@ -221,6 +235,10 @@
 
     </div>
 
+    <img id="employeePhoto"
+         class="employee-photo hidden"
+         alt="">
+
     <div id="employeeName"
          class="employee-name">
     </div>
@@ -250,7 +268,7 @@
      Get it from: Apps Script editor > Deploy >
      Manage deployments > (copy the "Web app" URL).
   */
-  const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw43E_E3cx2GznF_uQWsvuAi_mpt7v9kC74sFbfMBUDbH0FWcIaY0vxG8fmbCE8aepFtQ/exec';
+  const APPS_SCRIPT_URL = 'PASTE_YOUR_APPS_SCRIPT_WEB_APP_URL_HERE';
 
   const MODEL_URL =
     'https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.15/model';
@@ -635,6 +653,12 @@
       const employee =
         match.employee;
 
+      const snapshotDataUrl = captureSnapshot(video);
+
+      const photoEl = document.getElementById('employeePhoto');
+      photoEl.src = snapshotDataUrl;
+      photoEl.classList.remove('hidden');
+
       document.getElementById(
         'employeeName'
       ).textContent =
@@ -664,6 +688,33 @@
       processing = false;
       updateReadyState();
     }
+  }
+
+
+  /* =====================================================
+     PHOTO CAPTURE
+     =====================================================
+     Grabs the current video frame as a still image (no
+     photo is stored anywhere server-side - this is just a
+     visual confirmation shown right after a successful
+     scan). Mirrored horizontally to match what the person
+     saw in the live preview (the <video> element itself is
+     mirrored via CSS for a natural "selfie" view).
+  */
+  function captureSnapshot(video) {
+
+    const canvas = document.createElement('canvas');
+
+    canvas.width = video.videoWidth || 640;
+    canvas.height = video.videoHeight || 480;
+
+    const ctx = canvas.getContext('2d');
+
+    ctx.translate(canvas.width, 0);
+    ctx.scale(-1, 1);
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    return canvas.toDataURL('image/jpeg', 0.85);
   }
 
 
@@ -755,14 +806,13 @@
 
     } else {
 
-      const actionText =
+      const actionLabel =
         result.type === 'TIME_IN'
-          ? 'Time In'
-          : 'Time Out';
+          ? 'TIME IN'
+          : 'TIME OUT';
 
       setStatus(
-        actionText +
-        ' recorded successfully at ' +
+        'Recorded successfully at ' +
         result.time,
         'success'
       );
@@ -770,7 +820,7 @@
       document.getElementById(
         'employeeName'
       ).textContent =
-        result.fullName;
+        result.fullName + ' - ' + actionLabel;
     }
 
     // Brief cooldown so the same face can't double-tap the
@@ -780,6 +830,10 @@
       document.getElementById(
         'employeeName'
       ).textContent = '';
+
+      const photoEl = document.getElementById('employeePhoto');
+      photoEl.classList.add('hidden');
+      photoEl.src = '';
 
       processing = false;
       updateReadyState();
