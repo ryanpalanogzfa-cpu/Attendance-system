@@ -47,13 +47,44 @@
 
     .subtitle {
       color: #777;
-      margin-bottom: 25px;
+      margin-bottom: 20px;
     }
 
     .clock {
       font-size: 30px;
       font-weight: bold;
-      margin-bottom: 25px;
+      margin-bottom: 20px;
+    }
+
+    .camera-area {
+      margin-bottom: 20px;
+      position: relative;
+    }
+
+    video {
+      width: 100%;
+      max-width: 420px;
+      border-radius: 16px;
+      background: #000;
+      transform: scaleX(-1);
+      display: block;
+      margin: 0 auto;
+    }
+
+    .camera-hint {
+      margin-top: 10px;
+      font-size: 14px;
+      color: #555;
+      min-height: 20px;
+    }
+
+    .retry-camera {
+      margin-top: 10px;
+      background: #777;
+      color: white;
+      padding: 10px 16px;
+      font-size: 14px;
+      display: none;
     }
 
     .buttons {
@@ -92,41 +123,6 @@
       border-radius: 12px;
       background: #f1f3f5;
       min-height: 48px;
-    }
-
-    .camera-area {
-      display: none;
-      margin-top: 20px;
-    }
-
-    video {
-      width: 100%;
-      max-width: 420px;
-      border-radius: 16px;
-      background: #000;
-      transform: scaleX(-1);
-    }
-
-    .camera-buttons {
-      display: flex;
-      gap: 10px;
-      margin-top: 12px;
-    }
-
-    .camera-buttons button {
-      flex: 1;
-      font-size: 15px;
-      padding: 13px;
-    }
-
-    .cancel {
-      background: #777;
-      color: white;
-    }
-
-    .scan {
-      background: #1769aa;
-      color: white;
     }
 
     .success {
@@ -183,25 +179,7 @@
       --:--:--
     </div>
 
-    <div class="buttons">
-
-      <button
-        id="timeInBtn"
-        class="time-in"
-        onclick="startAttendance('TIME_IN')">
-        TIME IN
-      </button>
-
-      <button
-        id="timeOutBtn"
-        class="time-out"
-        onclick="startAttendance('TIME_OUT')">
-        TIME OUT
-      </button>
-
-    </div>
-
-    <div id="cameraArea" class="camera-area">
+    <div class="camera-area">
 
       <video
         id="video"
@@ -210,22 +188,36 @@
         playsinline>
       </video>
 
-      <div class="camera-buttons">
-
-        <button
-          class="scan"
-          id="scanBtn"
-          onclick="scanFace()">
-          SCAN FACE
-        </button>
-
-        <button
-          class="cancel"
-          onclick="cancelCamera()">
-          CANCEL
-        </button>
-
+      <div id="cameraHint" class="camera-hint">
+        Starting camera...
       </div>
+
+      <button
+        id="retryCameraBtn"
+        class="retry-camera"
+        onclick="autoStartCamera()">
+        RETRY CAMERA
+      </button>
+
+    </div>
+
+    <div class="buttons">
+
+      <button
+        id="timeInBtn"
+        class="time-in"
+        onclick="handleAction('TIME_IN')"
+        disabled>
+        TIME IN
+      </button>
+
+      <button
+        id="timeOutBtn"
+        class="time-out"
+        onclick="handleAction('TIME_OUT')"
+        disabled>
+        TIME OUT
+      </button>
 
     </div>
 
@@ -239,7 +231,7 @@
     </div>
 
     <div class="small">
-      Please position your face clearly in front of the camera.
+      Position your face in front of the camera, then press Time In or Time Out.
     </div>
 
   </div>
@@ -257,10 +249,8 @@
 
      Get it from: Apps Script editor > Deploy >
      Manage deployments > (copy the "Web app" URL).
-     Every time you redeploy a new VERSION, this URL stays
-     the same, so you normally only need to set this once.
   */
-  const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw43E_E3cx2GznF_uQWsvuAi_mpt7v9kC74sFbfMBUDbH0FWcIaY0vxG8fmbCE8aepFtQ/exec';
+  const APPS_SCRIPT_URL = 'PASTE_YOUR_APPS_SCRIPT_WEB_APP_URL_HERE';
 
   const MODEL_URL =
     'https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.15/model';
@@ -278,8 +268,9 @@
   let modelsLoaded = false;
   let faceDatabase = [];
 
-  let currentAction = null;
+  let cameraReady = false;
   let stream = null;
+  let processing = false; // true while a scan/record is in flight
 
 
   /* =====================================================
@@ -291,10 +282,6 @@
      browser skips the OPTIONS preflight, which Apps Script
      cannot answer correctly. Apps Script still reads the
      raw JSON body fine via e.postData.contents.
-
-     This helper just returns the parsed JSON response as-is.
-     Callers are responsible for checking result.success where
-     that field is meaningful (see each call site).
   */
   function callApi(action, data) {
 
@@ -363,6 +350,49 @@
   }
 
 
+  function setCameraHint(message) {
+    document.getElementById('cameraHint').textContent = message || '';
+  }
+
+
+  /* =====================================================
+     READY STATE
+     =====================================================
+     Buttons only enable once the camera is live, the models
+     are loaded, and the employee face list has arrived.
+  */
+  function updateReadyState() {
+
+    const ready =
+      modelsLoaded &&
+      cameraReady &&
+      faceDatabase.length > 0 &&
+      !processing;
+
+    document.getElementById('timeInBtn').disabled = !ready;
+    document.getElementById('timeOutBtn').disabled = !ready;
+
+    if (processing) return;
+
+    if (!cameraReady) {
+      setStatus('Waiting for camera access...', 'loading');
+      return;
+    }
+
+    if (!modelsLoaded) {
+      setStatus('Loading face recognition...', 'loading');
+      return;
+    }
+
+    if (!faceDatabase.length) {
+      setStatus('No registered employees with face data were found.', 'error');
+      return;
+    }
+
+    setStatus('Ready. Position your face and press Time In or Time Out.', 'success');
+  }
+
+
   /* =====================================================
      LOAD PUBLIC CONFIG (threshold)
      ===================================================== */
@@ -392,11 +422,6 @@
 
     try {
 
-      setStatus(
-        'Loading face recognition...',
-        'loading'
-      );
-
       await Promise.all([
 
         faceapi.nets.tinyFaceDetector.loadFromUri(
@@ -415,11 +440,6 @@
 
       modelsLoaded = true;
 
-      setStatus(
-        'Ready. Please select Time In or Time Out.',
-        'success'
-      );
-
     } catch (error) {
 
       console.error(error);
@@ -428,6 +448,10 @@
         'Unable to load face recognition models.',
         'error'
       );
+
+    } finally {
+
+      updateReadyState();
     }
   }
 
@@ -451,81 +475,39 @@
           'Employees loaded:',
           faceDatabase.length
         );
-
-        // Don't stomp on a status message the user is
-        // actively looking at mid-scan - only reset the
-        // idle message.
-        if (modelsLoaded && !currentAction) {
-
-          setStatus(
-            'Ready. Please select Time In or Time Out.',
-            'success'
-          );
-        }
       })
       .catch(function(error) {
 
         console.error(error);
 
-        if (!currentAction) {
+        if (!processing) {
 
           setStatus(
             error.message || 'Unable to load employee records.',
             'error'
           );
         }
+      })
+      .finally(function() {
+        updateReadyState();
       });
   }
 
 
   /* =====================================================
-     START ATTENDANCE
-     ===================================================== */
+     CAMERA - AUTO START
+     =====================================================
+     This page is a plain static file (hosted outside Apps
+     Script's HtmlService iframe), so getUserMedia() is not
+     blocked by Permissions-Policy the way it was before.
+     The camera starts automatically on page load and stays
+     live continuously - no "start camera" button needed.
+  */
 
-  async function startAttendance(action) {
+  async function autoStartCamera() {
 
-    if (!APPS_SCRIPT_URL || APPS_SCRIPT_URL.indexOf('PASTE_YOUR') === 0) {
-
-      setStatus(
-        'This page is not configured yet - set APPS_SCRIPT_URL in the code.',
-        'error'
-      );
-
-      return;
-    }
-
-    if (!modelsLoaded) {
-
-      setStatus(
-        'Face recognition is still loading. Please wait.',
-        'error'
-      );
-
-      return;
-    }
-
-    if (!faceDatabase.length) {
-
-      setStatus(
-        'No registered employees with face data were found.',
-        'error'
-      );
-
-      return;
-    }
-
-    currentAction = action;
-
-    document.getElementById('timeInBtn').disabled = true;
-    document.getElementById('timeOutBtn').disabled = true;
-
-    document.getElementById('cameraArea').style.display =
-      'block';
-
-    setStatus(
-      'Starting camera...',
-      'loading'
-    );
+    document.getElementById('retryCameraBtn').style.display = 'none';
+    setCameraHint('Starting camera...');
 
     try {
 
@@ -549,50 +531,57 @@
 
       await video.play();
 
-      setStatus(
-        'Position your face inside the camera and press SCAN FACE.',
-        'loading'
-      );
+      cameraReady = true;
+
+      setCameraHint('');
 
     } catch (error) {
 
       console.error(error);
 
-      cancelCamera();
+      cameraReady = false;
 
-      setStatus(
-        'Camera access was denied or unavailable. Please allow camera permission in your browser.',
-        'error'
+      setCameraHint(
+        'Camera access was denied or unavailable.'
       );
+
+      document.getElementById('retryCameraBtn').style.display =
+        'inline-block';
+
+    } finally {
+
+      updateReadyState();
     }
   }
 
 
   /* =====================================================
-     SCAN FACE
+     TIME IN / TIME OUT - scan + record in one press
      ===================================================== */
 
-  async function scanFace() {
+  async function handleAction(action) {
 
-    if (!stream) {
+    if (processing) return;
+
+    if (!APPS_SCRIPT_URL || APPS_SCRIPT_URL.indexOf('PASTE_YOUR') === 0) {
 
       setStatus(
-        'Camera is not active.',
+        'This page is not configured yet - set APPS_SCRIPT_URL in the code.',
         'error'
       );
 
       return;
     }
 
-    const scanButton =
-      document.getElementById('scanBtn');
+    if (!cameraReady || !modelsLoaded || !faceDatabase.length) {
+      updateReadyState();
+      return;
+    }
 
-    scanButton.disabled = true;
+    processing = true;
+    updateReadyState();
 
-    setStatus(
-      'Scanning face...',
-      'loading'
-    );
+    setStatus('Scanning face...', 'loading');
 
     try {
 
@@ -614,11 +603,12 @@
       if (!detection) {
 
         setStatus(
-          'No face detected. Please look directly at the camera.',
+          'No face detected. Please look directly at the camera and try again.',
           'error'
         );
 
-        scanButton.disabled = false;
+        processing = false;
+        updateReadyState();
 
         return;
       }
@@ -636,7 +626,8 @@
           'error'
         );
 
-        scanButton.disabled = false;
+        processing = false;
+        updateReadyState();
 
         return;
       }
@@ -654,36 +645,24 @@
         'loading'
       );
 
-      stopCamera();
-
-      callApi('recordAttendance', {
+      const result = await callApi('recordAttendance', {
         employeeId: employee.employeeId,
-        attendanceAction: currentAction
-      })
-        .then(handleAttendanceResult)
-        .catch(function(error) {
+        attendanceAction: action
+      });
 
-          console.error(error);
-
-          resetButtons();
-
-          setStatus(
-            error.message ||
-            'Unable to record attendance.',
-            'error'
-          );
-        });
+      handleAttendanceResult(result);
 
     } catch (error) {
 
       console.error(error);
 
-      scanButton.disabled = false;
-
       setStatus(
-        'An error occurred during face recognition.',
+        error.message || 'An error occurred during face recognition.',
         'error'
       );
+
+      processing = false;
+      updateReadyState();
     }
   }
 
@@ -756,12 +735,9 @@
      recordAttendance always returns normally (never throws)
      even when the business action fails (e.g. already timed
      in), so success:false here means "show this message",
-     not "something broke". Actual transport/server errors
-     are handled in the .catch() at the call site above.
+     not "something broke".
   */
   function handleAttendanceResult(result) {
-
-    resetButtons();
 
     if (!result) {
 
@@ -770,106 +746,45 @@
         'error'
       );
 
-      return;
-    }
-
-    if (!result.success) {
+    } else if (!result.success) {
 
       setStatus(
         result.message,
         'error'
       );
 
-      return;
+    } else {
+
+      const actionText =
+        result.type === 'TIME_IN'
+          ? 'Time In'
+          : 'Time Out';
+
+      setStatus(
+        actionText +
+        ' recorded successfully at ' +
+        result.time,
+        'success'
+      );
+
+      document.getElementById(
+        'employeeName'
+      ).textContent =
+        result.fullName;
     }
 
-    const actionText =
-      result.type === 'TIME_IN'
-        ? 'Time In'
-        : 'Time Out';
-
-    setStatus(
-      actionText +
-      ' recorded successfully at ' +
-      result.time,
-      'success'
-    );
-
-    document.getElementById(
-      'employeeName'
-    ).textContent =
-      result.fullName;
-
+    // Brief cooldown so the same face can't double-tap the
+    // action, and so the next person has a clean slate.
     setTimeout(function() {
 
       document.getElementById(
         'employeeName'
       ).textContent = '';
 
-      setStatus(
-        'Ready. Please select Time In or Time Out.',
-        'success'
-      );
+      processing = false;
+      updateReadyState();
 
-    }, 5000);
-  }
-
-
-  /* =====================================================
-     CAMERA
-     ===================================================== */
-
-  function stopCamera() {
-
-    if (stream) {
-
-      stream
-        .getTracks()
-        .forEach(function(track) {
-          track.stop();
-        });
-
-      stream = null;
-    }
-  }
-
-
-  function cancelCamera() {
-
-    stopCamera();
-
-    document.getElementById(
-      'cameraArea'
-    ).style.display = 'none';
-
-    resetButtons();
-
-    setStatus(
-      'Ready. Please select Time In or Time Out.',
-      'success'
-    );
-  }
-
-
-  function resetButtons() {
-
-    document.getElementById(
-      'timeInBtn'
-    ).disabled = false;
-
-    document.getElementById(
-      'timeOutBtn'
-    ).disabled = false;
-
-    document.getElementById(
-      'scanBtn'
-    ).disabled = false;
-
-    document.getElementById(
-      'cameraArea'
-    ).style.display = 'none';
-
-    currentAction = null;
+    }, 3000);
   }
 
 
@@ -880,6 +795,10 @@
   window.addEventListener(
     'load',
     async function() {
+
+      updateReadyState();
+
+      autoStartCamera();
 
       await loadPublicConfig();
       await loadModels();
