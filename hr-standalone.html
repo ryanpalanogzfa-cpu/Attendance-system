@@ -644,6 +644,11 @@
 
         <div id="attendanceTable"></div>
 
+
+        <h3>Late this day (Time In after 7:30 AM)</h3>
+
+        <div id="lateTable"></div>
+
       </div>
 
 
@@ -805,7 +810,7 @@
      Same Web App URL as attendance-standalone.html.
      https://script.google.com/macros/s/AKfycb.../exec
   */
-  const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw43E_E3cx2GznF_uQWsvuAi_mpt7v9kC74sFbfMBUDbH0FWcIaY0vxG8fmbCE8aepFtQ/exec';
+  const APPS_SCRIPT_URL = 'PASTE_YOUR_APPS_SCRIPT_WEB_APP_URL_HERE';
 
   const MODEL_URL =
     'https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.15/model';
@@ -1590,6 +1595,69 @@
 
         document.getElementById(
           'attendanceTable'
+        ).innerHTML = html;
+
+      })
+      .catch(handleServerError);
+
+    loadLateRecords(from, to);
+  }
+
+
+  function loadLateRecords(from, to) {
+
+    callApiOrThrow('getLateRecords', {
+      token: sessionToken,
+      dateFrom: from,
+      dateTo: to
+    })
+      .then(function(records) {
+
+        let html = `
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Employee ID</th>
+                <th>Name</th>
+                <th>Time In</th>
+                <th>Logged At</th>
+              </tr>
+            </thead>
+            <tbody>
+        `;
+
+        if (!records.length) {
+
+          html += `
+            <tr>
+              <td colspan="5">No late arrivals for this date range.</td>
+            </tr>
+          `;
+
+        } else {
+
+          records.forEach(function(record) {
+
+            html += `
+              <tr>
+                <td>${escapeHtml(record.date)}</td>
+                <td>${escapeHtml(record.employeeId)}</td>
+                <td>${escapeHtml(record.fullName)}</td>
+                <td>${escapeHtml(record.timeIn)}</td>
+                <td>${escapeHtml(record.loggedAt)}</td>
+              </tr>
+            `;
+          });
+        }
+
+        html += `
+            </tbody>
+          </table>
+        `;
+
+        document.getElementById(
+          'lateTable'
         ).innerHTML = html;
 
       })
