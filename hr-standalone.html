@@ -810,7 +810,7 @@
      Same Web App URL as attendance-standalone.html.
      https://script.google.com/macros/s/AKfycb.../exec
   */
-  const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw43E_E3cx2GznF_uQWsvuAi_mpt7v9kC74sFbfMBUDbH0FWcIaY0vxG8fmbCE8aepFtQ/exec';
+  const APPS_SCRIPT_URL = 'PASTE_YOUR_APPS_SCRIPT_WEB_APP_URL_HERE';
 
   const MODEL_URL =
     'https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.15/model';
@@ -1621,6 +1621,7 @@
                 <th>Employee ID</th>
                 <th>Name</th>
                 <th>Time In</th>
+                <th>Minutes Late</th>
                 <th>Logged At</th>
               </tr>
             </thead>
@@ -1631,7 +1632,7 @@
 
           html += `
             <tr>
-              <td colspan="5">No late arrivals for this date range.</td>
+              <td colspan="6">No late arrivals for this date range.</td>
             </tr>
           `;
 
@@ -1645,6 +1646,7 @@
                 <td>${escapeHtml(record.employeeId)}</td>
                 <td>${escapeHtml(record.fullName)}</td>
                 <td>${escapeHtml(record.timeIn)}</td>
+                <td>${escapeHtml(String(record.minutesLate))} min</td>
                 <td>${escapeHtml(record.loggedAt)}</td>
               </tr>
             `;
