@@ -617,22 +617,12 @@
 
         <div class="form-grid">
 
-          <div>
+          <div class="full">
 
-            <label>From</label>
-
-            <input
-              id="dateFrom"
-              type="date">
-
-          </div>
-
-          <div>
-
-            <label>To</label>
+            <label>Date</label>
 
             <input
-              id="dateTo"
+              id="filterDate"
               type="date">
 
           </div>
@@ -823,7 +813,7 @@
      Same Web App URL as attendance-standalone.html.
      https://script.google.com/macros/s/AKfycb.../exec
   */
-  const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw43E_E3cx2GznF_uQWsvuAi_mpt7v9kC74sFbfMBUDbH0FWcIaY0vxG8fmbCE8aepFtQ/exec';
+  const APPS_SCRIPT_URL = 'PASTE_YOUR_APPS_SCRIPT_WEB_APP_URL_HERE';
 
   const MODEL_URL =
     'https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.15/model';
@@ -1561,15 +1551,15 @@
 
   function loadAttendance() {
 
-    const from =
+    const selectedDate =
       document.getElementById(
-        'dateFrom'
+        'filterDate'
       ).value;
 
-    const to =
-      document.getElementById(
-        'dateTo'
-      ).value;
+    // Same value used for both ends of the range, so the
+    // API filters to just this one day.
+    const from = selectedDate;
+    const to = selectedDate;
 
     callApiOrThrow('getAttendanceRecords', {
       token: sessionToken,
@@ -1765,14 +1755,11 @@
       'Late this day'
     );
 
-    const from =
-      document.getElementById('dateFrom').value || 'all';
-
-    const to =
-      document.getElementById('dateTo').value || 'all';
+    const selectedDate =
+      document.getElementById('filterDate').value || 'all-dates';
 
     const filename =
-      'Attendance_' + from + '_to_' + to + '.xlsx';
+      'Attendance_' + selectedDate + '.xlsx';
 
     XLSX.writeFile(workbook, filename);
   }
