@@ -10,6 +10,11 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.15/dist/face-api.js"></script>
 
+  <!-- SheetJS - builds .xlsx files entirely in the browser,
+       no backend involved. Used by the Export to Excel button
+       in the Attendance section. -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
   <style>
 
     * {
@@ -642,6 +647,14 @@
 
         </button>
 
+        <button
+          class="success"
+          onclick="exportRecordsToExcel()">
+
+          EXPORT TO EXCEL
+
+        </button>
+
         <div id="attendanceTable"></div>
 
 
@@ -810,7 +823,7 @@
      Same Web App URL as attendance-standalone.html.
      https://script.google.com/macros/s/AKfycb.../exec
   */
-  const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw43E_E3cx2GznF_uQWsvuAi_mpt7v9kC74sFbfMBUDbH0FWcIaY0vxG8fmbCE8aepFtQ/exec';
+  const APPS_SCRIPT_URL = 'PASTE_YOUR_APPS_SCRIPT_WEB_APP_URL_HERE';
 
   const MODEL_URL =
     'https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.15/model';
@@ -822,6 +835,12 @@
   let capturedDescriptor = null;
 
   let modelsLoaded = false;
+
+  // Cached from the most recent loadAttendance() call, so
+  // Export to Excel doesn't need a fresh API round-trip -
+  // it just exports whatever is currently on screen.
+  let lastAttendanceRecords = [];
+  let lastLateRecords = [];
 
 
   /* =====================================================
@@ -1559,6 +1578,8 @@
     })
       .then(function(records) {
 
+        lastAttendanceRecords = records;
+
         let html = `
           <table>
             <thead>
@@ -1613,6 +1634,8 @@
     })
       .then(function(records) {
 
+        lastLateRecords = records;
+
         let html = `
           <table>
             <thead>
@@ -1664,6 +1687,94 @@
 
       })
       .catch(handleServerError);
+  }
+
+
+  /* =====================================================
+     EXPORT TO EXCEL
+     =====================================================
+     Builds an .xlsx file entirely in the browser (via
+     SheetJS, loaded in <head>) from whatever is currently
+     loaded on screen - Attendance Records on one sheet,
+     Late this day on another. Does not call the server
+     again; press LOAD RECORDS first to refresh what gets
+     exported.
+  */
+  function exportRecordsToExcel() {
+
+    if (typeof XLSX === 'undefined') {
+
+      alert(
+        'The Excel export library failed to load. Check your internet connection and try again.'
+      );
+
+      return;
+    }
+
+    if (!lastAttendanceRecords.length && !lastLateRecords.length) {
+
+      alert(
+        'Please press LOAD RECORDS first, then export.'
+      );
+
+      return;
+    }
+
+    const workbook = XLSX.utils.book_new();
+
+    const attendanceRows = lastAttendanceRecords.map(function(record) {
+
+      return {
+        'Date': record.date,
+        'Employee ID': record.employeeId,
+        'Name': record.fullName,
+        'Time In': record.timeIn,
+        'Time Out': record.timeOut,
+        'Status': record.status,
+        'Last Updated': record.lastUpdated
+      };
+    });
+
+    const attendanceSheet =
+      XLSX.utils.json_to_sheet(attendanceRows);
+
+    XLSX.utils.book_append_sheet(
+      workbook,
+      attendanceSheet,
+      'Attendance'
+    );
+
+    const lateRows = lastLateRecords.map(function(record) {
+
+      return {
+        'Date': record.date,
+        'Employee ID': record.employeeId,
+        'Name': record.fullName,
+        'Time In': record.timeIn,
+        'Minutes Late': record.minutesLate,
+        'Logged At': record.loggedAt
+      };
+    });
+
+    const lateSheet =
+      XLSX.utils.json_to_sheet(lateRows);
+
+    XLSX.utils.book_append_sheet(
+      workbook,
+      lateSheet,
+      'Late this day'
+    );
+
+    const from =
+      document.getElementById('dateFrom').value || 'all';
+
+    const to =
+      document.getElementById('dateTo').value || 'all';
+
+    const filename =
+      'Attendance_' + from + '_to_' + to + '.xlsx';
+
+    XLSX.writeFile(workbook, filename);
   }
 
 
