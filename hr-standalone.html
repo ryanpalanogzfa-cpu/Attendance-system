@@ -405,6 +405,10 @@
         Attendance
       </button>
 
+      <button onclick="showSection('lateRecordsSection')">
+        Late Records
+      </button>
+
       <button
         id="accountsMenu"
         onclick="showSection('accountsSection')">
@@ -639,7 +643,7 @@
 
         <button
           class="success"
-          onclick="exportRecordsToExcel()">
+          onclick="exportAttendanceToExcel()">
 
           EXPORT TO EXCEL
 
@@ -647,8 +651,49 @@
 
         <div id="attendanceTable"></div>
 
+      </div>
 
-        <h3>Late this day (Time In after 7:30 AM)</h3>
+
+      <!-- LATE RECORDS -->
+
+      <div id="lateRecordsSection"
+           class="section hidden">
+
+        <h2>Late Records</h2>
+
+        <div class="small" style="margin-top: -10px; margin-bottom: 15px;">
+          Employees whose Time In was logged after 7:30 AM.
+        </div>
+
+        <div class="form-grid">
+
+          <div>
+
+            <label>Date</label>
+
+            <input
+              id="filterLateDate"
+              type="date">
+
+          </div>
+
+        </div>
+
+        <button
+          class="primary"
+          onclick="loadLateRecords()">
+
+          LOAD RECORDS
+
+        </button>
+
+        <button
+          class="success"
+          onclick="exportLateToExcel()">
+
+          EXPORT TO EXCEL
+
+        </button>
 
         <div id="lateTable"></div>
 
@@ -1090,6 +1135,10 @@
 
     if (id === 'attendanceSection') {
       loadAttendance();
+    }
+
+    if (id === 'lateRecordsSection') {
+      loadLateRecords();
     }
 
     if (
@@ -1558,13 +1607,10 @@
 
     // Same value used for both ends of the range, so the
     // API filters to just this one day.
-    const from = selectedDate;
-    const to = selectedDate;
-
     callApiOrThrow('getAttendanceRecords', {
       token: sessionToken,
-      dateFrom: from,
-      dateTo: to
+      dateFrom: selectedDate,
+      dateTo: selectedDate
     })
       .then(function(records) {
 
@@ -1610,17 +1656,21 @@
 
       })
       .catch(handleServerError);
-
-    loadLateRecords(from, to);
   }
 
 
-  function loadLateRecords(from, to) {
+
+  function loadLateRecords() {
+
+    const selectedDate =
+      document.getElementById(
+        'filterLateDate'
+      ).value;
 
     callApiOrThrow('getLateRecords', {
       token: sessionToken,
-      dateFrom: from,
-      dateTo: to
+      dateFrom: selectedDate,
+      dateTo: selectedDate
     })
       .then(function(records) {
 
@@ -1683,14 +1733,13 @@
   /* =====================================================
      EXPORT TO EXCEL
      =====================================================
-     Builds an .xlsx file entirely in the browser (via
+     Each builds an .xlsx file entirely in the browser (via
      SheetJS, loaded in <head>) from whatever is currently
-     loaded on screen - Attendance Records on one sheet,
-     Late this day on another. Does not call the server
-     again; press LOAD RECORDS first to refresh what gets
-     exported.
+     loaded on screen for that page. Does not call the
+     server again; press LOAD RECORDS first to refresh what
+     gets exported.
   */
-  function exportRecordsToExcel() {
+  function exportAttendanceToExcel() {
 
     if (typeof XLSX === 'undefined') {
 
@@ -1701,7 +1750,7 @@
       return;
     }
 
-    if (!lastAttendanceRecords.length && !lastLateRecords.length) {
+    if (!lastAttendanceRecords.length) {
 
       alert(
         'Please press LOAD RECORDS first, then export.'
@@ -1734,6 +1783,38 @@
       'Attendance'
     );
 
+    const selectedDate =
+      document.getElementById('filterDate').value || 'all-dates';
+
+    const filename =
+      'Attendance_' + selectedDate + '.xlsx';
+
+    XLSX.writeFile(workbook, filename);
+  }
+
+
+  function exportLateToExcel() {
+
+    if (typeof XLSX === 'undefined') {
+
+      alert(
+        'The Excel export library failed to load. Check your internet connection and try again.'
+      );
+
+      return;
+    }
+
+    if (!lastLateRecords.length) {
+
+      alert(
+        'Please press LOAD RECORDS first, then export.'
+      );
+
+      return;
+    }
+
+    const workbook = XLSX.utils.book_new();
+
     const lateRows = lastLateRecords.map(function(record) {
 
       return {
@@ -1756,10 +1837,10 @@
     );
 
     const selectedDate =
-      document.getElementById('filterDate').value || 'all-dates';
+      document.getElementById('filterLateDate').value || 'all-dates';
 
     const filename =
-      'Attendance_' + selectedDate + '.xlsx';
+      'LateRecords_' + selectedDate + '.xlsx';
 
     XLSX.writeFile(workbook, filename);
   }
