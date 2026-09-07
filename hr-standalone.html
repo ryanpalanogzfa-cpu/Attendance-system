@@ -659,7 +659,7 @@
       <div id="lateRecordsSection"
            class="section hidden">
 
-        <h2>Late Employees Records</h2>
+        <h2>Late Records</h2>
 
         <div class="small" style="margin-top: -10px; margin-bottom: 15px;">
           Employees whose Time In was logged after 7:30 AM.
@@ -858,7 +858,7 @@
      Same Web App URL as attendance-standalone.html.
      https://script.google.com/macros/s/AKfycb.../exec
   */
-  const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw43E_E3cx2GznF_uQWsvuAi_mpt7v9kC74sFbfMBUDbH0FWcIaY0vxG8fmbCE8aepFtQ/exec';
+  const APPS_SCRIPT_URL = 'PASTE_YOUR_APPS_SCRIPT_WEB_APP_URL_HERE';
 
   const MODEL_URL =
     'https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.15/model';
@@ -1111,6 +1111,28 @@
      SECTION NAVIGATION
      ===================================================== */
 
+  /*
+   * Returns today's date as 'yyyy-MM-dd' in Philippine time,
+   * matching the format <input type="date"> expects. Used
+   * to auto-default the Attendance / Late Records date
+   * filters to "today" every time those pages are opened.
+   */
+  function getTodayPhilippineDateString() {
+
+    const formatter = new Intl.DateTimeFormat(
+      'en-CA', // en-CA formats as yyyy-MM-dd by default
+      {
+        timeZone: 'Asia/Manila',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+      }
+    );
+
+    return formatter.format(new Date());
+  }
+
+
   function showSection(id) {
 
     document
@@ -1134,10 +1156,18 @@
     }
 
     if (id === 'attendanceSection') {
+
+      document.getElementById('filterDate').value =
+        getTodayPhilippineDateString();
+
       loadAttendance();
     }
 
     if (id === 'lateRecordsSection') {
+
+      document.getElementById('filterLateDate').value =
+        getTodayPhilippineDateString();
+
       loadLateRecords();
     }
 
