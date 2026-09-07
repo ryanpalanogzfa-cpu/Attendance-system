@@ -508,7 +508,83 @@
 
           </div>
 
-          <div class="full">
+          <div>
+
+            <h3 style="margin-top: 0;">Face Registration</h3>
+
+            <div class="camera-box">
+
+              <video
+                id="hrVideo"
+                autoplay
+                muted
+                playsinline>
+              </video>
+
+            </div>
+
+            <div class="button-row">
+
+              <button
+                class="primary"
+                onclick="startHRCamera()">
+
+                START CAMERA
+
+              </button>
+
+              <button
+                class="secondary"
+                onclick="triggerPhotoUpload()">
+
+                UPLOAD PHOTO
+
+              </button>
+
+              <button
+                class="success"
+                id="captureFaceButton"
+                onclick="captureEmployeeFace()"
+                disabled>
+
+                CAPTURE FACE
+
+              </button>
+
+              <button
+                class="secondary"
+                onclick="stopHRCamera()">
+
+                STOP CAMERA
+
+              </button>
+
+            </div>
+
+            <!--
+              Fallback for devices/browsers with no camera
+              (or camera access blocked): lets HR/Admin/
+              Timekeeper pick an existing photo file instead,
+              and the face descriptor is extracted from that
+              image the same way it would be from a live
+              camera capture.
+            -->
+            <input
+              type="file"
+              id="employeePhotoUpload"
+              accept="image/*"
+              class="hidden"
+              onchange="handleEmployeePhotoUpload(event)">
+
+            <div
+              id="faceStatus"
+              class="message">
+              Face registration not started.
+            </div>
+
+          </div>
+
+          <div>
 
             <label>Department</label>
 
@@ -525,56 +601,6 @@
 
           </div>
 
-        </div>
-
-
-        <h3>Face Registration</h3>
-
-        <div class="camera-box">
-
-          <video
-            id="hrVideo"
-            autoplay
-            muted
-            playsinline>
-          </video>
-
-        </div>
-
-        <div class="button-row">
-
-          <button
-            class="primary"
-            onclick="startHRCamera()">
-
-            START CAMERA
-
-          </button>
-
-          <button
-            class="success"
-            id="captureFaceButton"
-            onclick="captureEmployeeFace()"
-            disabled>
-
-            CAPTURE FACE
-
-          </button>
-
-          <button
-            class="secondary"
-            onclick="stopHRCamera()">
-
-            STOP CAMERA
-
-          </button>
-
-        </div>
-
-        <div
-          id="faceStatus"
-          class="message">
-          Face registration not started.
         </div>
 
 
@@ -858,7 +884,7 @@
      Same Web App URL as attendance-standalone.html.
      https://script.google.com/macros/s/AKfycb.../exec
   */
-  const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw43E_E3cx2GznF_uQWsvuAi_mpt7v9kC74sFbfMBUDbH0FWcIaY0vxG8fmbCE8aepFtQ/exec';
+  const APPS_SCRIPT_URL = 'PASTE_YOUR_APPS_SCRIPT_WEB_APP_URL_HERE';
 
   const MODEL_URL =
     'https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.15/model';
@@ -1379,6 +1405,114 @@
       ).textContent =
         'Face capture failed.';
     }
+  }
+
+
+  /* =====================================================
+     UPLOAD PHOTO (fallback when there's no camera)
+     =====================================================
+     Lets HR/Admin/Timekeeper register a face from an
+     existing photo file instead of a live camera. Reuses
+     the same capturedDescriptor variable that
+     captureEmployeeFace() sets, so registerEmployee() below
+     works identically either way.
+  */
+  function triggerPhotoUpload() {
+
+    document
+      .getElementById('employeePhotoUpload')
+      .click();
+  }
+
+
+  async function handleEmployeePhotoUpload(event) {
+
+    const file =
+      event.target.files && event.target.files[0];
+
+    if (!file) return;
+
+    document.getElementById(
+      'faceStatus'
+    ).textContent =
+      'Loading uploaded photo...';
+
+    await loadFaceModels();
+
+    const objectUrl = URL.createObjectURL(file);
+    const img = new Image();
+
+    img.onload = async function() {
+
+      try {
+
+        document.getElementById(
+          'faceStatus'
+        ).textContent =
+          'Detecting face in uploaded photo...';
+
+        const detection =
+          await faceapi
+            .detectSingleFace(
+              img,
+              new faceapi.TinyFaceDetectorOptions({
+                inputSize: 416,
+                scoreThreshold: 0.5
+              })
+            )
+            .withFaceLandmarks()
+            .withFaceDescriptor();
+
+        if (!detection) {
+
+          document.getElementById(
+            'faceStatus'
+          ).textContent =
+            'No face detected in the uploaded photo. Please try a clearer image.';
+
+          return;
+        }
+
+        capturedDescriptor =
+          Array.from(
+            detection.descriptor
+          );
+
+        document.getElementById(
+          'faceStatus'
+        ).textContent =
+          'Face captured successfully from uploaded photo. You can now register the employee.';
+
+      } catch (error) {
+
+        console.error(error);
+
+        document.getElementById(
+          'faceStatus'
+        ).textContent =
+          'Failed to process the uploaded photo.';
+
+      } finally {
+
+        URL.revokeObjectURL(objectUrl);
+
+        // Reset so selecting the same file again still
+        // fires this handler.
+        event.target.value = '';
+      }
+    };
+
+    img.onerror = function() {
+
+      document.getElementById(
+        'faceStatus'
+      ).textContent =
+        'Unable to load the selected image file.';
+
+      URL.revokeObjectURL(objectUrl);
+    };
+
+    img.src = objectUrl;
   }
 
 
