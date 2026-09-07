@@ -32,6 +32,44 @@
       display: none !important;
     }
 
+    /* GLOBAL LOADING BAR */
+
+    #globalLoader {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      z-index: 9999;
+      overflow: hidden;
+      display: none;
+      background: rgba(23,105,170,.15);
+    }
+
+    #globalLoader.active {
+      display: block;
+    }
+
+    #globalLoader::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -30%;
+      width: 30%;
+      height: 100%;
+      background: #1769aa;
+      animation: globalLoaderSlide 1s infinite ease-in-out;
+    }
+
+    @keyframes globalLoaderSlide {
+      0% {
+        left: -30%;
+      }
+      100% {
+        left: 100%;
+      }
+    }
+
     /* LOGIN */
 
     #loginPage {
@@ -262,6 +300,22 @@
       background: #334250;
     }
 
+    .sidebar button.active {
+      background: #334250;
+      position: relative;
+    }
+
+    .sidebar button.active::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 8px;
+      bottom: 8px;
+      width: 4px;
+      border-radius: 4px;
+      background: #4ea8de;
+    }
+
     .content {
       flex: 1;
       padding: 25px;
@@ -388,6 +442,14 @@
 
 <body>
 
+<!--
+  Global loading indicator - a thin bar at the very top of
+  the page that appears while any API request is in flight
+  (login, loading tables, saving forms, etc). Toggled by
+  showGlobalLoader()/hideGlobalLoader() inside callApi().
+-->
+<div id="globalLoader"></div>
+
 
 <!-- =====================================================
      LOGIN
@@ -491,29 +553,40 @@
 
     <div class="sidebar">
 
-      <button onclick="showSection('dashboardSection')">
+      <button
+        data-nav="dashboardSection"
+        onclick="showSection('dashboardSection')">
         Dashboard
       </button>
 
-      <button onclick="showSection('employeeSection')">
+      <button
+        data-nav="employeeSection"
+        onclick="showSection('employeeSection')">
         Employees
       </button>
 
-      <button onclick="showSection('attendanceSection')">
+      <button
+        data-nav="attendanceSection"
+        onclick="showSection('attendanceSection')">
         Attendance
       </button>
 
-      <button onclick="showSection('lateRecordsSection')">
+      <button
+        data-nav="lateRecordsSection"
+        onclick="showSection('lateRecordsSection')">
         Late Records
       </button>
 
       <button
         id="accountsMenu"
+        data-nav="accountsSection"
         onclick="showSection('accountsSection')">
         User Accounts
       </button>
 
-      <button onclick="showSection('passwordSection')">
+      <button
+        data-nav="passwordSection"
+        onclick="showSection('passwordSection')">
         Change Password
       </button>
 
@@ -989,7 +1062,7 @@
      Same Web App URL as attendance-standalone.html.
      https://script.google.com/macros/s/AKfycb.../exec
   */
-  const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw43E_E3cx2GznF_uQWsvuAi_mpt7v9kC74sFbfMBUDbH0FWcIaY0vxG8fmbCE8aepFtQ/exec';
+  const APPS_SCRIPT_URL = 'PASTE_YOUR_APPS_SCRIPT_WEB_APP_URL_HERE';
 
   const MODEL_URL =
     'https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.15/model';
@@ -1007,6 +1080,28 @@
   // it just exports whatever is currently on screen.
   let lastAttendanceRecords = [];
   let lastLateRecords = [];
+
+  // Tracks how many API calls are currently in flight, so
+  // the global loading bar stays visible if multiple calls
+  // overlap and only hides once ALL of them finish.
+  let activeRequestCount = 0;
+
+  function showGlobalLoader() {
+
+    activeRequestCount++;
+
+    document.getElementById('globalLoader').classList.add('active');
+  }
+
+  function hideGlobalLoader() {
+
+    activeRequestCount = Math.max(0, activeRequestCount - 1);
+
+    if (activeRequestCount === 0) {
+
+      document.getElementById('globalLoader').classList.remove('active');
+    }
+  }
 
 
   /* =====================================================
@@ -1033,6 +1128,8 @@
 
     const payload = Object.assign({ action: action }, data || {});
 
+    showGlobalLoader();
+
     return fetch(APPS_SCRIPT_URL, {
       method: 'POST',
       headers: {
@@ -1047,6 +1144,10 @@
         }
 
         return response.json();
+      })
+      .finally(function() {
+
+        hideGlobalLoader();
       });
   }
 
@@ -1312,6 +1413,17 @@
     document
       .getElementById(id)
       .classList.remove('hidden');
+
+    document
+      .querySelectorAll('.sidebar button[data-nav]')
+      .forEach(function(button) {
+
+        button.classList.toggle(
+          'active',
+          button.getAttribute('data-nav') === id
+        );
+
+      });
 
     if (id === 'dashboardSection') {
       loadDashboard();
