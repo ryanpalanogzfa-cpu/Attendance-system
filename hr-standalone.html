@@ -15,6 +15,13 @@
        in the Attendance section. -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
+  <!-- jsPDF + autoTable - builds .pdf files entirely in the
+       browser. Unlike the Excel export, a PDF genuinely
+       cannot be edited as a spreadsheet, so this is the
+       reliable option when data must not be editable. -->
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
+
   <style>
 
     * {
@@ -1069,6 +1076,14 @@
 
         </button>
 
+        <button
+          class="primary"
+          onclick="exportAttendancePDF()">
+
+          EXPORT TO PDF
+
+        </button>
+
         <div id="attendanceTable"></div>
 
       </div>
@@ -1112,6 +1127,14 @@
           onclick="exportLateToExcel()">
 
           EXPORT TO EXCEL
+
+        </button>
+
+        <button
+          class="primary"
+          onclick="exportLatePDF()">
+
+          EXPORT TO PDF
 
         </button>
 
@@ -1278,7 +1301,7 @@
      Same Web App URL as attendance-standalone.html.
      https://script.google.com/macros/s/AKfycb.../exec
   */
-  const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw43E_E3cx2GznF_uQWsvuAi_mpt7v9kC74sFbfMBUDbH0FWcIaY0vxG8fmbCE8aepFtQ/exec';
+  const APPS_SCRIPT_URL = 'PASTE_YOUR_APPS_SCRIPT_WEB_APP_URL_HERE';
 
   const MODEL_URL =
     'https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.15/model';
@@ -2532,7 +2555,57 @@
      loaded on screen for that page. Does not call the
      server again; press LOAD RECORDS first to refresh what
      gets exported.
+
+     Optional sheet protection: SheetJS's !protect property
+     locks cells from editing in Excel when a password is
+     set. IMPORTANT CAVEAT - this is NOT strong security. It
+     can be removed by anyone who knows how (renaming the
+     file to .zip and editing the XML inside), and Google
+     Sheets often ignores it entirely when the file is
+     uploaded there. Treat it as a "please don't casually
+     edit this" deterrent, not real protection. For files
+     that must genuinely not be editable, use EXPORT TO PDF
+     instead - a PDF cannot be edited as a spreadsheet at
+     all.
   */
+  function promptForExcelProtection_() {
+
+    const password = prompt(
+      'Optional: enter a password to lock this sheet from editing in Excel.\n\n' +
+      'Note: this is basic Excel protection only, not strong security - it can ' +
+      'be removed by anyone who knows how, and Google Sheets may ignore it. ' +
+      'Leave blank for no protection.',
+      ''
+    );
+
+    return password ? password.trim() : '';
+  }
+
+  function applySheetProtection_(sheet, password) {
+
+    if (!password) return;
+
+    sheet['!protect'] = {
+      password: password,
+      selectLockedCells: true,
+      selectUnlockedCells: true,
+      formatCells: false,
+      formatColumns: false,
+      formatRows: false,
+      insertColumns: false,
+      insertRows: false,
+      insertHyperlinks: false,
+      deleteColumns: false,
+      deleteRows: false,
+      sort: false,
+      autoFilter: false,
+      pivotTables: false,
+      objects: false,
+      scenarios: false
+    };
+  }
+
+
   function exportAttendanceToExcel() {
 
     if (typeof XLSX === 'undefined') {
@@ -2553,6 +2626,8 @@
       return;
     }
 
+    const password = promptForExcelProtection_();
+
     const workbook = XLSX.utils.book_new();
 
     const attendanceRows = lastAttendanceRecords.map(function(record) {
@@ -2570,6 +2645,8 @@
 
     const attendanceSheet =
       XLSX.utils.json_to_sheet(attendanceRows);
+
+    applySheetProtection_(attendanceSheet, password);
 
     XLSX.utils.book_append_sheet(
       workbook,
@@ -2607,6 +2684,8 @@
       return;
     }
 
+    const password = promptForExcelProtection_();
+
     const workbook = XLSX.utils.book_new();
 
     const lateRows = lastLateRecords.map(function(record) {
@@ -2624,6 +2703,8 @@
     const lateSheet =
       XLSX.utils.json_to_sheet(lateRows);
 
+    applySheetProtection_(lateSheet, password);
+
     XLSX.utils.book_append_sheet(
       workbook,
       lateSheet,
@@ -2637,6 +2718,131 @@
       'LateRecords_' + selectedDate + '.xlsx';
 
     XLSX.writeFile(workbook, filename);
+  }
+
+
+  /* =====================================================
+     EXPORT TO PDF
+     =====================================================
+     Builds a genuinely non-editable .pdf file entirely in
+     the browser via jsPDF + autoTable (loaded in <head>).
+     Unlike the Excel export, there is no "protection" to
+     bypass here - a PDF is not a spreadsheet, so the data
+     cannot be edited as a table at all (short of retyping
+     it from scratch).
+  */
+  function exportAttendancePDF() {
+
+    if (
+      typeof window.jspdf === 'undefined' ||
+      typeof window.jspdf.jsPDF === 'undefined'
+    ) {
+
+      alert(
+        'The PDF export library failed to load. Check your internet connection and try again.'
+      );
+
+      return;
+    }
+
+    if (!lastAttendanceRecords.length) {
+
+      alert(
+        'Please press LOAD RECORDS first, then export.'
+      );
+
+      return;
+    }
+
+    const selectedDate =
+      document.getElementById('filterDate').value || 'all-dates';
+
+    const doc = new window.jspdf.jsPDF({
+      orientation: 'landscape'
+    });
+
+    doc.setFontSize(14);
+    doc.text('Attendance Records - ' + selectedDate, 14, 15);
+
+    doc.autoTable({
+      startY: 22,
+      head: [[
+        'Date', 'Employee ID', 'Name', 'Time In', 'Time Out',
+        'Status', 'Last Updated'
+      ]],
+      body: lastAttendanceRecords.map(function(record) {
+        return [
+          record.date,
+          record.employeeId,
+          record.fullName,
+          record.timeIn,
+          record.timeOut,
+          record.status,
+          record.lastUpdated
+        ];
+      }),
+      styles: { fontSize: 9 },
+      headStyles: { fillColor: [23, 105, 170] }
+    });
+
+    doc.save('Attendance_' + selectedDate + '.pdf');
+  }
+
+
+  function exportLatePDF() {
+
+    if (
+      typeof window.jspdf === 'undefined' ||
+      typeof window.jspdf.jsPDF === 'undefined'
+    ) {
+
+      alert(
+        'The PDF export library failed to load. Check your internet connection and try again.'
+      );
+
+      return;
+    }
+
+    if (!lastLateRecords.length) {
+
+      alert(
+        'Please press LOAD RECORDS first, then export.'
+      );
+
+      return;
+    }
+
+    const selectedDate =
+      document.getElementById('filterLateDate').value || 'all-dates';
+
+    const doc = new window.jspdf.jsPDF({
+      orientation: 'landscape'
+    });
+
+    doc.setFontSize(14);
+    doc.text('Late Records - ' + selectedDate, 14, 15);
+
+    doc.autoTable({
+      startY: 22,
+      head: [[
+        'Date', 'Employee ID', 'Name', 'Time In', 'Minutes Late',
+        'Logged At'
+      ]],
+      body: lastLateRecords.map(function(record) {
+        return [
+          record.date,
+          record.employeeId,
+          record.fullName,
+          record.timeIn,
+          String(record.minutesLate) + ' min',
+          record.loggedAt
+        ];
+      }),
+      styles: { fontSize: 9 },
+      headStyles: { fillColor: [23, 105, 170] }
+    });
+
+    doc.save('LateRecords_' + selectedDate + '.pdf');
   }
 
 
