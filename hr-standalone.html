@@ -352,6 +352,130 @@
       margin-top: 8px;
     }
 
+    /* DASHBOARD WIDGETS */
+
+    .dashboard-columns {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+
+    @media(max-width: 800px) {
+      .dashboard-columns {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .trend-chart {
+      display: flex;
+      align-items: flex-end;
+      gap: 10px;
+      height: 140px;
+      padding: 10px 5px 0;
+      background: #f7f8fa;
+      border-radius: 12px;
+    }
+
+    .trend-bar-wrap {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-end;
+      height: 100%;
+    }
+
+    .trend-bar-count {
+      font-size: 12px;
+      font-weight: bold;
+      color: #1769aa;
+      margin-bottom: 4px;
+    }
+
+    .trend-bar {
+      width: 70%;
+      max-width: 34px;
+      background: #1769aa;
+      border-radius: 6px 6px 0 0;
+      min-height: 3px;
+    }
+
+    .trend-bar-label {
+      font-size: 11px;
+      color: #777;
+      margin-top: 6px;
+      text-align: center;
+      white-space: nowrap;
+    }
+
+    .list-card {
+      background: #f7f8fa;
+      border-radius: 12px;
+      padding: 12px 16px;
+    }
+
+    .list-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 10px 0;
+      border-bottom: 1px solid #e5e7eb;
+      font-size: 14px;
+    }
+
+    .list-row:last-child {
+      border-bottom: none;
+    }
+
+    .list-row-name {
+      font-weight: bold;
+    }
+
+    .list-row-meta {
+      color: #777;
+      white-space: nowrap;
+    }
+
+    .list-empty {
+      color: #999;
+      font-size: 14px;
+      padding: 10px 0;
+    }
+
+    .badge-in {
+      color: #176b39;
+      font-weight: bold;
+    }
+
+    .badge-out {
+      color: #b71c1c;
+      font-weight: bold;
+    }
+
+    .dept-bar-row {
+      margin-bottom: 12px;
+    }
+
+    .dept-bar-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 14px;
+      margin-bottom: 4px;
+    }
+
+    .dept-bar-track {
+      background: #f0f0f0;
+      border-radius: 6px;
+      height: 10px;
+      overflow: hidden;
+    }
+
+    .dept-bar-fill {
+      height: 100%;
+      background: #1769aa;
+      border-radius: 6px;
+    }
+
     table {
       width: 100%;
       border-collapse: collapse;
@@ -687,6 +811,62 @@
           </div>
 
         </div>
+
+
+        <h3>Quick Actions</h3>
+
+        <div class="button-row">
+
+          <button
+            class="primary"
+            onclick="showSection('employeeSection')">
+            Register Employee
+          </button>
+
+          <button
+            class="primary"
+            onclick="showSection('attendanceSection')">
+            View Today's Attendance
+          </button>
+
+          <button
+            class="primary"
+            onclick="showSection('lateRecordsSection')">
+            View Late Records
+          </button>
+
+        </div>
+
+
+        <h3>Attendance Trend (Last 7 Days)</h3>
+
+        <div id="weeklyTrendChart" class="trend-chart"></div>
+
+
+        <div class="dashboard-columns">
+
+          <div>
+
+            <h3>Currently Present</h3>
+
+            <div id="currentlyPresentList"></div>
+
+          </div>
+
+          <div>
+
+            <h3>Recent Activity</h3>
+
+            <div id="recentActivityList"></div>
+
+          </div>
+
+        </div>
+
+
+        <h3>Department Breakdown</h3>
+
+        <div id="departmentBreakdown"></div>
 
       </div>
 
@@ -1098,7 +1278,7 @@
      Same Web App URL as attendance-standalone.html.
      https://script.google.com/macros/s/AKfycb.../exec
   */
-  const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw43E_E3cx2GznF_uQWsvuAi_mpt7v9kC74sFbfMBUDbH0FWcIaY0vxG8fmbCE8aepFtQ/exec';
+  const APPS_SCRIPT_URL = 'PASTE_YOUR_APPS_SCRIPT_WEB_APP_URL_HERE';
 
   const MODEL_URL =
     'https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.15/model';
@@ -1528,8 +1708,160 @@
         ).textContent =
           data.lateToday;
 
+        renderWeeklyTrend(data.weeklyTrend || []);
+        renderCurrentlyPresent(data.currentlyPresentList || []);
+        renderRecentActivity(data.recentActivity || []);
+        renderDepartmentBreakdown(data.departmentBreakdown || []);
+
       })
       .catch(handleServerError);
+  }
+
+
+  function renderWeeklyTrend(trend) {
+
+    const container = document.getElementById('weeklyTrendChart');
+
+    if (!trend.length) {
+      container.innerHTML =
+        '<div class="list-empty">No data yet.</div>';
+      return;
+    }
+
+    const maxCount = Math.max(1, ...trend.map(function(d) {
+      return d.count;
+    }));
+
+    let html = '';
+
+    trend.forEach(function(day) {
+
+      const heightPct =
+        Math.max(4, Math.round((day.count / maxCount) * 100));
+
+      // 'yyyy-MM-dd' -> short weekday label, e.g. 'Mon 28'
+      const parts = day.date.split('-');
+      const dateObj = new Date(
+        Number(parts[0]), Number(parts[1]) - 1, Number(parts[2])
+      );
+
+      const label =
+        dateObj.toLocaleDateString('en-US', { weekday: 'short' }) +
+        ' ' + Number(parts[2]);
+
+      html += `
+        <div class="trend-bar-wrap">
+          <div class="trend-bar-count">${escapeHtml(String(day.count))}</div>
+          <div class="trend-bar" style="height: ${heightPct}%;"></div>
+          <div class="trend-bar-label">${escapeHtml(label)}</div>
+        </div>
+      `;
+    });
+
+    container.innerHTML = html;
+  }
+
+
+  function renderCurrentlyPresent(list) {
+
+    const container = document.getElementById('currentlyPresentList');
+
+    if (!list.length) {
+      container.innerHTML =
+        '<div class="list-card"><div class="list-empty">No one currently clocked in.</div></div>';
+      return;
+    }
+
+    let html = '<div class="list-card">';
+
+    list.forEach(function(person) {
+
+      html += `
+        <div class="list-row">
+          <span class="list-row-name">${escapeHtml(person.fullName)}</span>
+          <span class="list-row-meta">Since ${escapeHtml(person.timeIn)}</span>
+        </div>
+      `;
+    });
+
+    html += '</div>';
+
+    container.innerHTML = html;
+  }
+
+
+  function renderRecentActivity(events) {
+
+    const container = document.getElementById('recentActivityList');
+
+    if (!events.length) {
+      container.innerHTML =
+        '<div class="list-card"><div class="list-empty">No activity yet today.</div></div>';
+      return;
+    }
+
+    let html = '<div class="list-card">';
+
+    events.forEach(function(event) {
+
+      const badgeClass =
+        event.type === 'TIME_IN' ? 'badge-in' : 'badge-out';
+
+      const badgeText =
+        event.type === 'TIME_IN' ? 'Time In' : 'Time Out';
+
+      html += `
+        <div class="list-row">
+          <span>
+            <span class="list-row-name">${escapeHtml(event.fullName)}</span>
+            &nbsp;-&nbsp;<span class="${badgeClass}">${badgeText}</span>
+          </span>
+          <span class="list-row-meta">${escapeHtml(event.time)}</span>
+        </div>
+      `;
+    });
+
+    html += '</div>';
+
+    container.innerHTML = html;
+  }
+
+
+  function renderDepartmentBreakdown(breakdown) {
+
+    const container = document.getElementById('departmentBreakdown');
+
+    if (!breakdown.length) {
+      container.innerHTML =
+        '<div class="list-empty">No active employees yet.</div>';
+      return;
+    }
+
+    const maxCount = Math.max(1, ...breakdown.map(function(d) {
+      return d.count;
+    }));
+
+    let html = '';
+
+    breakdown.forEach(function(dept) {
+
+      const widthPct =
+        Math.max(4, Math.round((dept.count / maxCount) * 100));
+
+      html += `
+        <div class="dept-bar-row">
+          <div class="dept-bar-label">
+            <span>${escapeHtml(dept.department)}</span>
+            <span>${escapeHtml(String(dept.count))}</span>
+          </div>
+          <div class="dept-bar-track">
+            <div class="dept-bar-fill" style="width: ${widthPct}%;"></div>
+          </div>
+        </div>
+      `;
+    });
+
+    container.innerHTML = html;
   }
 
 
