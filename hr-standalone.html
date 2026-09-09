@@ -336,7 +336,7 @@
 
     .stats {
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
       gap: 15px;
     }
 
@@ -396,6 +396,18 @@
       display: flex;
       gap: 10px;
       flex-wrap: wrap;
+    }
+
+    .camera-buttons-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .camera-buttons-grid button {
+      padding: 10px 6px;
+      font-size: 13px;
+      white-space: nowrap;
     }
 
     @media(max-width: 800px) {
@@ -650,6 +662,30 @@
 
           </div>
 
+          <div class="stat">
+
+            Currently Present
+
+            <div
+              id="statCurrentlyPresent"
+              class="stat-number">
+              0
+            </div>
+
+          </div>
+
+          <div class="stat">
+
+            Late Today
+
+            <div
+              id="statLateToday"
+              class="stat-number">
+              0
+            </div>
+
+          </div>
+
         </div>
 
       </div>
@@ -701,7 +737,7 @@
 
             </div>
 
-            <div class="button-row">
+            <div class="button-row camera-buttons-grid">
 
               <button
                 class="primary"
@@ -1062,7 +1098,7 @@
      Same Web App URL as attendance-standalone.html.
      https://script.google.com/macros/s/AKfycb.../exec
   */
-  const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw43E_E3cx2GznF_uQWsvuAi_mpt7v9kC74sFbfMBUDbH0FWcIaY0vxG8fmbCE8aepFtQ/exec';
+  const APPS_SCRIPT_URL = 'PASTE_YOUR_APPS_SCRIPT_WEB_APP_URL_HERE';
 
   const MODEL_URL =
     'https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.15/model';
@@ -1481,6 +1517,16 @@
           'statTimeOuts'
         ).textContent =
           data.timeOutsToday;
+
+        document.getElementById(
+          'statCurrentlyPresent'
+        ).textContent =
+          data.currentlyPresent;
+
+        document.getElementById(
+          'statLateToday'
+        ).textContent =
+          data.lateToday;
 
       })
       .catch(handleServerError);
