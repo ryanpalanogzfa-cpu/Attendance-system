@@ -9,7 +9,16 @@
   <title>HR / Admin Portal</title>
 
   <script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.15/dist/face-api.js"></script>
+
+  <!-- SheetJS - builds .xlsx files entirely in the browser,
+       no backend involved. Used by the Export to Excel button
+       in the Attendance section. -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+  <!-- jsPDF + autoTable - builds .pdf files entirely in the
+       browser. Unlike the Excel export, a PDF genuinely
+       cannot be edited as a spreadsheet, so this is the
+       reliable option when data must not be editable. -->
   <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
 
@@ -29,7 +38,9 @@
     .hidden {
       display: none !important;
     }
-    
+
+    /* GLOBAL LOADING BAR */
+
     #globalLoader {
       position: fixed;
       top: 0;
@@ -65,6 +76,8 @@
         left: 100%;
       }
     }
+
+    /* LOGIN */
 
     #loginPage {
       min-height: 100vh;
@@ -117,6 +130,12 @@
       padding: 12px 18px;
       cursor: pointer;
       font-weight: bold;
+      transition: transform .12s ease, box-shadow .12s ease, opacity .12s ease;
+    }
+
+    button:active:not(:disabled) {
+      transform: scale(.96);
+      box-shadow: inset 0 2px 4px rgba(0,0,0,.15);
     }
 
     button:disabled {
@@ -166,6 +185,9 @@
       color: #176b39;
       background: #e8f5e9;
     }
+
+
+    /* ADMIN */
 
     #adminPage {
       min-height: 100vh;
@@ -342,6 +364,8 @@
       font-weight: bold;
       margin-top: 8px;
     }
+
+    /* DASHBOARD WIDGETS */
 
     .dashboard-columns {
       display: grid;
@@ -567,8 +591,19 @@
 
 <body>
 
+<!--
+  Global loading indicator - a thin bar at the very top of
+  the page that appears while any API request is in flight
+  (login, loading tables, saving forms, etc). Toggled by
+  showGlobalLoader()/hideGlobalLoader() inside callApi().
+-->
 <div id="globalLoader"></div>
-  
+
+
+<!-- =====================================================
+     LOGIN
+     ===================================================== -->
+
 <div id="loginPage">
 
   <div class="login-card">
@@ -609,7 +644,12 @@
   </div>
 
 </div>
-  
+
+
+<!-- =====================================================
+     ADMIN PORTAL
+     ===================================================== -->
+
 <div id="adminPage"
      class="hidden">
 
@@ -656,7 +696,10 @@
 
 
   <div class="layout">
-    
+
+
+    <!-- SIDEBAR -->
+
     <div class="sidebar">
 
       <button
@@ -704,9 +747,15 @@
       </button>
 
     </div>
-    
+
+
+    <!-- CONTENT -->
+
     <div class="content">
-      
+
+
+      <!-- DASHBOARD -->
+
       <div id="dashboardSection"
            class="section">
 
@@ -800,7 +849,8 @@
           </button>
 
         </div>
-        
+
+
         <h3>Attendance Trend (Last 7 Days)</h3>
 
         <div id="weeklyTrendChart" class="trend-chart"></div>
@@ -832,7 +882,10 @@
         <div id="departmentBreakdown"></div>
 
       </div>
-      
+
+
+      <!-- EMPLOYEE MANAGEMENT -->
+
       <div id="employeeSection"
            class="section hidden">
 
@@ -914,7 +967,15 @@
               </button>
 
             </div>
-            
+
+            <!--
+              Fallback for devices/browsers with no camera
+              (or camera access blocked): lets HR/Admin/
+              Timekeeper pick an existing photo file instead,
+              and the face descriptor is extracted from that
+              image the same way it would be from a live
+              camera capture.
+            -->
             <input
               type="file"
               id="employeePhotoUpload"
@@ -933,7 +994,14 @@
           <div>
 
             <label>Department</label>
-            
+
+            <!--
+              Populated at runtime from getPublicConfig(),
+              which reads CONFIG.DEPARTMENTS on the server.
+              This page has no Apps Script templating (it's
+              a plain static file), so the list is fetched
+              instead of injected server-side.
+            -->
             <select id="employeeDepartment">
               <option value="">Loading departments...</option>
             </select>
@@ -975,7 +1043,10 @@
         <div id="employeeTable"></div>
 
       </div>
-      
+
+
+      <!-- ATTENDANCE -->
+
       <div id="attendanceSection"
            class="section hidden">
 
@@ -1022,7 +1093,10 @@
         <div id="attendanceTable"></div>
 
       </div>
-      
+
+
+      <!-- LATE RECORDS -->
+
       <div id="lateRecordsSection"
            class="section hidden">
 
@@ -1073,7 +1147,10 @@
         <div id="lateTable"></div>
 
       </div>
-      
+
+
+      <!-- USER ACCOUNTS -->
+
       <div id="accountsSection"
            class="section hidden">
 
@@ -1153,7 +1230,10 @@
         <div id="usersTable"></div>
 
       </div>
-      
+
+
+      <!-- CHANGE PASSWORD -->
+
       <div id="passwordSection"
            class="section hidden">
 
@@ -1220,19 +1300,35 @@
 
 
 <script>
-  
-  const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw43E_E3cx2GznF_uQWsvuAi_mpt7v9kC74sFbfMBUDbH0FWcIaY0vxG8fmbCE8aepFtQ/exec';
+
+  /* =====================================================
+     CONFIG - EDIT THIS AFTER YOU DEPLOY THE APPS SCRIPT
+     =====================================================
+     Same Web App URL as attendance-standalone.html.
+     https://script.google.com/macros/s/AKfycb.../exec
+  */
+  const APPS_SCRIPT_URL = 'PASTE_YOUR_APPS_SCRIPT_WEB_APP_URL_HERE';
 
   const MODEL_URL =
     'https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.15/model';
 
   let sessionToken = null;
   let currentUser = null;
+
   let hrStream = null;
   let capturedDescriptor = null;
+
   let modelsLoaded = false;
+
+  // Cached from the most recent loadAttendance() call, so
+  // Export to Excel doesn't need a fresh API round-trip -
+  // it just exports whatever is currently on screen.
   let lastAttendanceRecords = [];
   let lastLateRecords = [];
+
+  // Tracks how many API calls are currently in flight, so
+  // the global loading bar stays visible if multiple calls
+  // overlap and only hides once ALL of them finish.
   let activeRequestCount = 0;
 
   function showGlobalLoader() {
@@ -1251,7 +1347,28 @@
       document.getElementById('globalLoader').classList.remove('active');
     }
   }
-  
+
+
+  /* =====================================================
+     API HELPER
+     =====================================================
+     POSTs as text/plain (not application/json) so the
+     browser treats it as a CORS "simple request" and skips
+     the OPTIONS preflight - Apps Script cannot answer that
+     preflight correctly, so application/json would fail
+     here even though the server reads the body fine either
+     way.
+
+     Returns the parsed JSON response as-is. Endpoints that
+     intentionally return {success:false, ...} as real data
+     (login, changePassword, registerEmployee, etc.) are
+     checked by their own caller, exactly like the original
+     google.script.run success handlers did. Endpoints that
+     return plain data (arrays, dashboard stats) will have
+     success:false injected by the server only when an
+     exception was thrown - callApiOrThrow() below handles
+     that case for you.
+  */
   function callApi(action, data) {
 
     const payload = Object.assign({ action: action }, data || {});
@@ -1279,6 +1396,16 @@
       });
   }
 
+  /*
+   * For endpoints whose successful shape is plain data
+   * (array/object with no "success" field by design) -
+   * getEmployees, getUsers, getAttendanceRecords,
+   * getDashboardStats, getPublicConfig. A {success:false,...}
+   * response here can only mean the server threw (bad/expired
+   * token, permission error, etc.), so turn it into a
+   * rejected promise the same way withFailureHandler used to
+   * fire.
+   */
   function callApiOrThrow(action, data) {
 
     return callApi(action, data).then(function(result) {
@@ -1295,7 +1422,12 @@
       return result;
     });
   }
-  
+
+
+  /* =====================================================
+     LOGIN
+     ===================================================== */
+
   function login() {
 
     const username =
@@ -1409,7 +1541,7 @@
     if (sessionToken) {
 
       callApi('logoutUser', { token: sessionToken })
-        .catch(function(){});
+        .catch(function() { /* logging out anyway */ });
 
     }
 
@@ -1418,14 +1550,20 @@
 
     location.reload();
   }
-  
+
+
+  /* =====================================================
+     USER MENU DROPDOWN (topbar pill)
+     ===================================================== */
+
   function toggleUserMenu() {
 
     document
       .getElementById('userDropdown')
       .classList.toggle('hidden');
   }
-  
+
+  // Close the dropdown when clicking anywhere outside it.
   document.addEventListener('click', function(event) {
 
     const menu = document.querySelector('.user-menu');
@@ -1439,7 +1577,12 @@
       dropdown.classList.add('hidden');
     }
   });
-  
+
+
+  /* =====================================================
+     DEPARTMENTS
+     ===================================================== */
+
   function loadDepartments() {
 
     callApiOrThrow('getPublicConfig')
@@ -1474,11 +1617,22 @@
           '<option value="">Unable to load departments</option>';
       });
   }
-  
+
+
+  /* =====================================================
+     SECTION NAVIGATION
+     ===================================================== */
+
+  /*
+   * Returns today's date as 'yyyy-MM-dd' in Philippine time,
+   * matching the format <input type="date"> expects. Used
+   * to auto-default the Attendance / Late Records date
+   * filters to "today" every time those pages are opened.
+   */
   function getTodayPhilippineDateString() {
 
     const formatter = new Intl.DateTimeFormat(
-      'en-CA', 
+      'en-CA', // en-CA formats as yyyy-MM-dd by default
       {
         timeZone: 'Asia/Manila',
         year: 'numeric',
@@ -1547,7 +1701,12 @@
       loadUsers();
     }
   }
-  
+
+
+  /* =====================================================
+     DASHBOARD
+     ===================================================== */
+
   function loadDashboard() {
 
     callApiOrThrow('getDashboardStats', { token: sessionToken })
@@ -1608,6 +1767,8 @@
 
       const heightPct =
         Math.max(4, Math.round((day.count / maxCount) * 100));
+
+      // 'yyyy-MM-dd' -> short weekday label, e.g. 'Mon 28'
       const parts = day.date.split('-');
       const dateObj = new Date(
         Number(parts[0]), Number(parts[1]) - 1, Number(parts[2])
@@ -1731,7 +1892,12 @@
 
     container.innerHTML = html;
   }
-  
+
+
+  /* =====================================================
+     FACE MODELS
+     ===================================================== */
+
   async function loadFaceModels() {
 
     if (modelsLoaded) return;
@@ -1771,7 +1937,17 @@
         'Unable to load face recognition models.';
     }
   }
-  
+
+
+  /* =====================================================
+     HR CAMERA
+     =====================================================
+     This page is now a plain static file (hosted on
+     GitHub Pages, not inside Apps Script's HtmlService
+     iframe), so getUserMedia() is NOT blocked by
+     Permissions-Policy the way it was before.
+  */
+
   async function startHRCamera() {
 
     await loadFaceModels();
@@ -1889,7 +2065,17 @@
         'Face capture failed.';
     }
   }
-  
+
+
+  /* =====================================================
+     UPLOAD PHOTO (fallback when there's no camera)
+     =====================================================
+     Lets HR/Admin/Timekeeper register a face from an
+     existing photo file instead of a live camera. Reuses
+     the same capturedDescriptor variable that
+     captureEmployeeFace() sets, so registerEmployee() below
+     works identically either way.
+  */
   function triggerPhotoUpload() {
 
     document
@@ -1968,6 +2154,9 @@
       } finally {
 
         URL.revokeObjectURL(objectUrl);
+
+        // Reset so selecting the same file again still
+        // fires this handler.
         event.target.value = '';
       }
     };
@@ -2003,7 +2192,12 @@
       'captureFaceButton'
     ).disabled = true;
   }
-  
+
+
+  /* =====================================================
+     REGISTER EMPLOYEE
+     ===================================================== */
+
   function registerEmployee() {
 
     const employeeId =
@@ -2124,7 +2318,12 @@
 
     el.textContent = message;
   }
-  
+
+
+  /* =====================================================
+     EMPLOYEE LIST
+     ===================================================== */
+
   function loadEmployees() {
 
     callApiOrThrow('getEmployees', { token: sessionToken })
@@ -2216,7 +2415,12 @@
       })
       .catch(handleServerError);
   }
-  
+
+
+  /* =====================================================
+     ATTENDANCE
+     ===================================================== */
+
   function loadAttendance() {
 
     const selectedDate =
@@ -2224,7 +2428,8 @@
         'filterDate'
       ).value;
 
-    
+    // Same value used for both ends of the range, so the
+    // API filters to just this one day.
     callApiOrThrow('getAttendanceRecords', {
       token: sessionToken,
       dateFrom: selectedDate,
@@ -2348,7 +2553,27 @@
   }
 
 
-  
+  /* =====================================================
+     EXPORT TO EXCEL
+     =====================================================
+     Each builds an .xlsx file entirely in the browser (via
+     SheetJS, loaded in <head>) from whatever is currently
+     loaded on screen for that page. Does not call the
+     server again; press LOAD RECORDS first to refresh what
+     gets exported.
+
+     Optional sheet protection: SheetJS's !protect property
+     locks cells from editing in Excel when a password is
+     set. IMPORTANT CAVEAT - this is NOT strong security. It
+     can be removed by anyone who knows how (renaming the
+     file to .zip and editing the XML inside), and Google
+     Sheets often ignores it entirely when the file is
+     uploaded there. Treat it as a "please don't casually
+     edit this" deterrent, not real protection. For files
+     that must genuinely not be editable, use EXPORT TO PDF
+     instead - a PDF cannot be edited as a spreadsheet at
+     all.
+  */
   function promptForExcelProtection_() {
 
     const password = prompt(
@@ -2501,7 +2726,17 @@
     XLSX.writeFile(workbook, filename);
   }
 
-  
+
+  /* =====================================================
+     EXPORT TO PDF
+     =====================================================
+     Builds a genuinely non-editable .pdf file entirely in
+     the browser via jsPDF + autoTable (loaded in <head>).
+     Unlike the Excel export, there is no "protection" to
+     bypass here - a PDF is not a spreadsheet, so the data
+     cannot be edited as a table at all (short of retyping
+     it from scratch).
+  */
   function exportAttendancePDF() {
 
     if (
@@ -2616,7 +2851,11 @@
     doc.save('LateRecords_' + selectedDate + '.pdf');
   }
 
-  
+
+  /* =====================================================
+     USER ACCOUNTS
+     ===================================================== */
+
   function createAccount() {
 
     if (
@@ -2818,7 +3057,11 @@
     el.textContent = message;
   }
 
-  
+
+  /* =====================================================
+     CHANGE PASSWORD
+     ===================================================== */
+
   function changeOwnPassword() {
 
     const currentPassword =
@@ -2937,13 +3180,20 @@
     el.textContent = message;
   }
 
-  
+
+  /* =====================================================
+     HELPERS
+     ===================================================== */
+
   function handleServerError(error) {
 
     const message =
       error && error.message
         ? error.message
         : 'An unexpected error occurred.';
+
+    // If the session died, don't just alert into a dead
+    // screen - send the user back to the login page.
     if (message.toLowerCase().indexOf('session') !== -1) {
 
       alert(
@@ -2979,7 +3229,12 @@
       .replace(/\\/g, '\\\\')
       .replace(/'/g, "\\'");
   }
-  
+
+
+  /* =====================================================
+     ENTER KEY LOGIN
+     ===================================================== */
+
   document
     .getElementById('loginPassword')
     .addEventListener(
