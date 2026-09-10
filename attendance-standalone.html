@@ -6,11 +6,12 @@
         content="width=device-width, initial-scale=1.0">
 
   <title>Employee Attendance</title>
-  
+
+  <!-- Face API -->
   <script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.15/dist/face-api.js"></script>
 
-  <style> 
-    * { 
+  <style>
+    * {
       box-sizing: border-box;
     }
 
@@ -99,6 +100,12 @@
       font-size: 18px;
       font-weight: bold;
       cursor: pointer;
+      transition: transform .12s ease, box-shadow .12s ease, opacity .12s ease;
+    }
+
+    button:active:not(:disabled) {
+      transform: scale(.96);
+      box-shadow: inset 0 2px 4px rgba(0,0,0,.15);
     }
 
     button:disabled {
@@ -258,19 +265,48 @@
 
 <script>
 
-  const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw43E_E3cx2GznF_uQWsvuAi_mpt7v9kC74sFbfMBUDbH0FWcIaY0vxG8fmbCE8aepFtQ/exec';
+  /* =====================================================
+     CONFIG - EDIT THIS AFTER YOU DEPLOY THE APPS SCRIPT
+     =====================================================
+     Paste your Apps Script Web App URL below. It looks like:
+     https://script.google.com/macros/s/AKfycb.../exec
+
+     Get it from: Apps Script editor > Deploy >
+     Manage deployments > (copy the "Web app" URL).
+  */
+  const APPS_SCRIPT_URL = 'PASTE_YOUR_APPS_SCRIPT_WEB_APP_URL_HERE';
+
   const MODEL_URL =
     'https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.15/model';
+
+  // Filled in from the server via getPublicConfig() once the
+  // page loads, so this page and the backend can never drift
+  // out of sync on the threshold.
   let FACE_MATCH_THRESHOLD = 0.48;
-  const FACE_DB_REFRESH_MS = 5 * 60 * 1000; 
+
+  // Re-pull the employee face list on this interval so a kiosk
+  // left open all day picks up newly-registered employees
+  // without needing a manual page refresh.
+  const FACE_DB_REFRESH_MS = 5 * 60 * 1000; // 5 minutes
 
   let modelsLoaded = false;
   let faceDatabase = [];
 
   let cameraReady = false;
   let stream = null;
-  let processing = false; 
+  let processing = false; // true while a scan/record is in flight
 
+
+  /* =====================================================
+     API HELPER
+     =====================================================
+     Sends a POST request to the Apps Script Web App as
+     Content-Type: text/plain. This is intentional - it
+     keeps the request a CORS "simple request" so the
+     browser skips the OPTIONS preflight, which Apps Script
+     cannot answer correctly. Apps Script still reads the
+     raw JSON body fine via e.postData.contents.
+  */
   function callApi(action, data) {
 
     const payload = Object.assign({ action: action }, data || {});
@@ -291,6 +327,11 @@
         return response.json();
       });
   }
+
+
+  /* =====================================================
+     CLOCK
+     ===================================================== */
 
   function updateClock() {
 
@@ -313,7 +354,12 @@
 
   setInterval(updateClock, 1000);
   updateClock();
-  
+
+
+  /* =====================================================
+     STATUS
+     ===================================================== */
+
   function setStatus(message, type) {
 
     const el = document.getElementById('status');
@@ -332,6 +378,13 @@
     document.getElementById('cameraHint').textContent = message || '';
   }
 
+
+  /* =====================================================
+     READY STATE
+     =====================================================
+     Buttons only enable once the camera is live, the models
+     are loaded, and the employee face list has arrived.
+  */
   function updateReadyState() {
 
     const ready =
@@ -362,7 +415,12 @@
 
     setStatus('Ready. Position your face and press Time In or Time Out.', 'success');
   }
-  
+
+
+  /* =====================================================
+     LOAD PUBLIC CONFIG (threshold)
+     ===================================================== */
+
   function loadPublicConfig() {
 
     return callApi('getPublicConfig')
@@ -375,10 +433,15 @@
       .catch(function(error) {
 
         console.error(error);
-       
+        // Not fatal - fall back to the default above.
       });
   }
-  
+
+
+  /* =====================================================
+     LOAD MODELS
+     ===================================================== */
+
   async function loadModels() {
 
     try {
@@ -415,7 +478,12 @@
       updateReadyState();
     }
   }
-  
+
+
+  /* =====================================================
+     LOAD EMPLOYEE FACE DATABASE
+     ===================================================== */
+
   function loadFaceDatabase() {
 
     callApi('getPublicFaceDatabase')
@@ -448,7 +516,18 @@
         updateReadyState();
       });
   }
-  
+
+
+  /* =====================================================
+     CAMERA - AUTO START
+     =====================================================
+     This page is a plain static file (hosted outside Apps
+     Script's HtmlService iframe), so getUserMedia() is not
+     blocked by Permissions-Policy the way it was before.
+     The camera starts automatically on page load and stays
+     live continuously - no "start camera" button needed.
+  */
+
   async function autoStartCamera() {
 
     document.getElementById('retryCameraBtn').style.display = 'none';
@@ -498,6 +577,11 @@
       updateReadyState();
     }
   }
+
+
+  /* =====================================================
+     TIME IN / TIME OUT - scan + record in one press
+     ===================================================== */
 
   async function handleAction(action) {
 
@@ -612,7 +696,17 @@
     }
   }
 
-  
+
+  /* =====================================================
+     PHOTO CAPTURE
+     =====================================================
+     Grabs the current video frame as a still image (no
+     photo is stored anywhere server-side - this is just a
+     visual confirmation shown right after a successful
+     scan). Mirrored horizontally to match what the person
+     saw in the live preview (the <video> element itself is
+     mirrored via CSS for a natural "selfie" view).
+  */
   function captureSnapshot(video) {
 
     const canvas = document.createElement('canvas');
@@ -629,7 +723,11 @@
     return canvas.toDataURL('image/jpeg', 0.85);
   }
 
-  
+
+  /* =====================================================
+     FACE MATCHING
+     ===================================================== */
+
   function findBestMatch(queryDescriptor) {
 
     let bestEmployee = null;
@@ -687,7 +785,15 @@
     return Math.sqrt(sum);
   }
 
-  
+
+  /* =====================================================
+     ATTENDANCE RESULT
+     =====================================================
+     recordAttendance always returns normally (never throws)
+     even when the business action fails (e.g. already timed
+     in), so success:false here means "show this message",
+     not "something broke".
+  */
   function handleAttendanceResult(result) {
 
     if (!result) {
@@ -723,7 +829,8 @@
         result.fullName + ' - ' + actionLabel;
     }
 
-    
+    // Brief cooldown so the same face can't double-tap the
+    // action, and so the next person has a clean slate.
     setTimeout(function() {
 
       document.getElementById(
@@ -740,7 +847,11 @@
     }, 3000);
   }
 
-  
+
+  /* =====================================================
+     INITIALIZE
+     ===================================================== */
+
   window.addEventListener(
     'load',
     async function() {
