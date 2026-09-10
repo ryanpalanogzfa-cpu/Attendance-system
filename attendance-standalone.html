@@ -7,7 +7,7 @@
 
   <title>Employee Attendance</title>
 
-  <!-- Face API --> 
+  <!-- Face API -->
   <script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.15/dist/face-api.js"></script>
 
   <style>
@@ -104,9 +104,7 @@
     }
 
     button:hover:not(:disabled) {
-      transform: translateY(-2px);
-      box-shadow: 0 6px 14px rgba(0,0,0,.15);
-      filter: brightness(1.06);
+      filter: brightness(.88);
     }
 
     button:active:not(:disabled) {
@@ -282,7 +280,7 @@
      Manage deployments > (copy the "Web app" URL).
   */
   const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw43E_E3cx2GznF_uQWsvuAi_mpt7v9kC74sFbfMBUDbH0FWcIaY0vxG8fmbCE8aepFtQ/exec';
- 
+
   const MODEL_URL =
     'https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.15/model';
 
@@ -868,7 +866,7 @@
       autoStartCamera();
 
       await loadPublicConfig();
-      await loadModels();
+      await loadModels(); 
 
       loadFaceDatabase();
 
