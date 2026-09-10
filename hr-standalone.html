@@ -1245,7 +1245,7 @@
 
 <script>
 
-  const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw43E_E3cx2GznF_uQWsvuAi_mpt7v9kC74sFbfMBUDbH0FWcIaY0vxG8fmbCE8aepFtQ/exec';
+  const APPS_SCRIPT_URL = 'PASTE_YOUR_APPS_SCRIPT_WEB_APP_URL_HERE';
 
   const MODEL_URL =
     'https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.15/model';
@@ -1362,44 +1362,16 @@
         sessionToken = result.token;
         currentUser = result.user;
 
-        document.getElementById(
-          'loginPage'
-        ).classList.add('hidden');
+        sessionStorage.setItem('sessionToken', sessionToken);
+        sessionStorage.setItem('currentUser', JSON.stringify(currentUser));
 
-        document.getElementById(
-          'adminPage'
-        ).classList.remove('hidden');
-
-        document.getElementById(
-          'loggedUser'
-        ).textContent =
-          currentUser.fullName +
-          ' • ' +
-          currentUser.role;
-
-        document.getElementById(
-          'userAvatar'
-        ).textContent =
-          currentUser.fullName
-            .trim()
-            .charAt(0)
-            .toUpperCase();
-
-        if (
-          currentUser.role !== 'SUPER_ADMIN'
-        ) {
-
-          document.getElementById(
-            'accountsMenu'
-          ).classList.add('hidden');
-
-        }
+        showAdminUI(currentUser);
 
         loadDepartments();
 
-        showSection('dashboardSection');
-
-        loadDashboard();
+        showSection(
+          sessionStorage.getItem('currentSection') || 'dashboardSection'
+        );
 
       })
       .catch(function(error) {
@@ -1411,6 +1383,41 @@
         );
 
       });
+  }
+
+
+  function showAdminUI(user) {
+
+    document.getElementById(
+      'loginPage'
+    ).classList.add('hidden');
+
+    document.getElementById(
+      'adminPage'
+    ).classList.remove('hidden');
+
+    document.getElementById(
+      'loggedUser'
+    ).textContent =
+      user.fullName +
+      ' • ' +
+      user.role;
+
+    document.getElementById(
+      'userAvatar'
+    ).textContent =
+      user.fullName
+        .trim()
+        .charAt(0)
+        .toUpperCase();
+
+    if (user.role !== 'SUPER_ADMIN') {
+
+      document.getElementById(
+        'accountsMenu'
+      ).classList.add('hidden');
+
+    }
   }
 
 
@@ -1445,6 +1452,10 @@
 
     sessionToken = null;
     currentUser = null;
+
+    sessionStorage.removeItem('sessionToken');
+    sessionStorage.removeItem('currentUser');
+    sessionStorage.removeItem('currentSection');
 
     location.reload();
   }
@@ -1525,6 +1536,15 @@
 
 
   function showSection(id) {
+
+    if (
+      id === 'accountsSection' &&
+      currentUser.role !== 'SUPER_ADMIN'
+    ) {
+      id = 'dashboardSection';
+    }
+
+    sessionStorage.setItem('currentSection', id);
 
     document
       .querySelectorAll('.section')
@@ -2994,6 +3014,10 @@
       sessionToken = null;
       currentUser = null;
 
+      sessionStorage.removeItem('sessionToken');
+      sessionStorage.removeItem('currentUser');
+      sessionStorage.removeItem('currentSection');
+
       location.reload();
 
       return;
@@ -3025,7 +3049,7 @@
   document
     .getElementById('loginPassword')
     .addEventListener(
-      'keydown', 
+      'keydown',
       function(event) {
 
         if (event.key === 'Enter') {
@@ -3034,6 +3058,39 @@
 
       }
     );
+
+
+  function restoreSessionOnLoad() {
+
+    const storedToken = sessionStorage.getItem('sessionToken');
+    const storedUserRaw = sessionStorage.getItem('currentUser');
+
+    if (!storedToken || !storedUserRaw) return;
+
+    let storedUser;
+
+    try {
+      storedUser = JSON.parse(storedUserRaw);
+    } catch (error) {
+      sessionStorage.removeItem('sessionToken');
+      sessionStorage.removeItem('currentUser');
+      sessionStorage.removeItem('currentSection');
+      return;
+    }
+
+    sessionToken = storedToken;
+    currentUser = storedUser;
+
+    showAdminUI(currentUser);
+
+    loadDepartments();
+
+    showSection(
+      sessionStorage.getItem('currentSection') || 'dashboardSection'
+    );
+  }
+
+  restoreSessionOnLoad();
 
 </script>
 
